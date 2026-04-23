@@ -6,6 +6,18 @@ const DEFAULT_ROLE_MAP = {
   role_expert: '1496208236502585588'
 };
 
+const DEFAULT_REGION_ROLE_LABELS = {
+  eu: 'EU',
+  uk: 'UK',
+  na: 'NA',
+  latam: 'LATAM',
+  africa: 'AFRICA',
+  sa: 'SA',
+  ea: 'EA',
+  sea: 'SEA',
+  oce: 'OCE'
+};
+
 function boolFromEnv(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
@@ -45,6 +57,27 @@ function roleMapFromEnv() {
   }
 }
 
+function simpleStringMapFromEnv(envKey) {
+  if (!process.env[envKey]) return {};
+
+  try {
+    const parsed = JSON.parse(process.env[envKey]);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error(`${envKey} must be an object`);
+    }
+
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof key !== 'string' || typeof value !== 'string') {
+        throw new Error(`${envKey} must only contain string keys and values`);
+      }
+    }
+
+    return parsed;
+  } catch (error) {
+    throw new Error(`Invalid ${envKey}: ${error.message}`);
+  }
+}
+
 const hostingProfile = (process.env.HOSTING_PROFILE || 'laptop').toLowerCase();
 const laptopProfile = hostingProfile === 'laptop';
 
@@ -67,12 +100,35 @@ const config = {
   channels: {
     rolePanel: process.env.ROLE_PANEL_CHANNEL_ID || '1495760275448528928',
     welcome: process.env.WELCOME_CHANNEL_ID || process.env.ROLE_PANEL_CHANNEL_ID || '1495760275448528928',
+    rules: process.env.RULES_CHANNEL_ID || '',
     siteUrl: process.env.SITE_URL || 'https://tanksletloose.carrd.co/',
     generalUrl:
       process.env.GENERAL_CHANNEL_URL ||
       'https://discord.com/channels/1495760274827903086/1495924550662098944',
     gameChannelId: process.env.GAME_CHANNEL_ID || '1447381195003400340',
-    readyRoleId: process.env.READY_ROLE_ID || '1496201325317197895'
+    readyRoleId: process.env.READY_ROLE_ID || '1496201325317197895',
+    verifiedRoleId: process.env.RULES_VERIFIED_ROLE_ID || ''
+  },
+  botInfo: {
+    ownerName: process.env.BOT_OWNER_NAME || '',
+    contactText: process.env.BOT_CONTACT_TEXT || '',
+    supportChannelId: process.env.BOT_SUPPORT_CHANNEL_ID || ''
+  },
+  community: {
+    onboardingEnabled: boolFromEnv(process.env.ONBOARDING_ENABLED, true),
+    communityChannelId: process.env.COMMUNITY_CHANNEL_ID || '',
+    videoEnabled: boolFromEnv(process.env.VIDEO_ENABLED, true),
+    videoChannelId: process.env.VIDEO_CHANNEL_ID || '',
+    spotlightEnabled: boolFromEnv(process.env.SPOTLIGHT_ENABLED, true),
+    spotlightChannelId: process.env.SPOTLIGHT_CHANNEL_ID || '',
+    spotlightRoleId: process.env.SPOTLIGHT_ROLE_ID || '',
+    eventEnabled: boolFromEnv(process.env.EVENT_ENABLED, true),
+    eventChannelId: process.env.EVENT_CHANNEL_ID || '',
+    anniversaryEnabled: boolFromEnv(process.env.ANNIVERSARY_ENABLED, true),
+    weeklyRecapEnabled: boolFromEnv(process.env.WEEKLY_RECAP_ENABLED, true),
+    softModerationEnabled: boolFromEnv(process.env.SOFT_MODERATION_ENABLED, true),
+    moderationLogChannelId: process.env.MODERATION_LOG_CHANNEL_ID || '',
+    coachRoleId: process.env.COACH_ROLE_ID || ''
   },
   gallery: {
     showcaseChannelId: process.env.GALLERY_SHOWCASE_CHANNEL_ID || '',
@@ -83,12 +139,18 @@ const config = {
   },
   rolePanelMessageId: process.env.ROLE_PANEL_MESSAGE_ID || null,
   roleMap: roleMapFromEnv(),
+  regionRoleMap: simpleStringMapFromEnv('REGION_ROLE_MAP_JSON'),
+  regionRoleLabels: DEFAULT_REGION_ROLE_LABELS,
   leveling: {
     maxLevel: Math.min(intFromEnv(process.env.MAX_LEVEL, 500), 500),
     textCooldownSeconds: intFromEnv(process.env.TEXT_XP_COOLDOWN_SECONDS, 15),
     voiceXpSecondsPerPoint: intFromEnv(process.env.VOICE_XP_SECONDS_PER_POINT, 120),
     voiceTrackingIntervalMs: intFromEnv(process.env.VOICE_TRACKING_INTERVAL_MS, laptopProfile ? 120_000 : 60_000),
-    afkVoiceChannelIds: csvFromEnv(process.env.AFK_VOICE_CHANNEL_IDS)
+    afkVoiceChannelIds: csvFromEnv(process.env.AFK_VOICE_CHANNEL_IDS),
+    infoChannelId: process.env.LEVELING_INFO_CHANNEL_ID || ''
+  },
+  onboarding: {
+    rulesEnabled: boolFromEnv(process.env.RULES_ENABLED, false)
   }
 };
 

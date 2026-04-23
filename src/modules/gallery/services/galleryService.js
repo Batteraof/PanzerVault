@@ -7,8 +7,25 @@ const galleryTagService = require('./galleryTagService');
 const galleryRateLimitService = require('./galleryRateLimitService');
 const galleryPostService = require('./galleryPostService');
 const galleryBlacklistRepository = require('../../../db/repositories/galleryBlacklistRepository');
+const communitySettingsService = require('../../config/services/communitySettingsService');
+const { CATEGORIES } = require('../constants/galleryConfig');
 const { GalleryUserError } = require('../utils/galleryErrors');
 const logger = require('../../../logger');
+
+async function notifyShowcasePosted(client, guildId, submission, message) {
+  if (submission.category !== CATEGORIES.SHOWCASE) return;
+
+  const communitySettings = await communitySettingsService.ensureGuildSettings(guildId);
+  if (!communitySettings.community_channel_id) return;
+
+  const channel = await client.channels.fetch(communitySettings.community_channel_id).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  await channel.send({
+    content: `New showcase post from <@${submission.user_id}> is live.\n${message.url}`,
+    allowedMentions: { parse: [] }
+  }).catch(() => null);
+}
 
 async function ensureGuildGallerySetup(guildId, client) {
   const settings = await gallerySettingsService.ensureGuildSettings(guildId, client);
@@ -16,7 +33,7 @@ async function ensureGuildGallerySetup(guildId, client) {
   return settings;
 }
 
-async function createSubmissionRecord(interaction, input, settings) {
+async function createSubmissionRecord(interaction, input, settings, options = {}) {
   const guildId = interaction.guild.id;
   const userId = interaction.user.id;
   const now = new Date();
@@ -55,7 +72,7 @@ async function createSubmissionRecord(interaction, input, settings) {
         caption: input.caption,
         videoLink: input.videoLink,
         targetChannelId: txTargetChannelId,
-        sourceRef: interaction.id
+        sourceRef: options.sourceRef || interaction.id
       },
       client
     );
@@ -79,13 +96,22 @@ async function submit(interaction) {
   }
 
   const input = galleryValidationService.getSubmitInput(interaction);
+  return submitPrepared(interaction, input);
+}
+
+async function submitPrepared(interaction, rawInput, options = {}) {
+  if (!interaction.guild) {
+    throw new GalleryUserError('Gallery submissions can only be used in a server.');
+  }
+
+  const input = galleryValidationService.buildSubmitInput(rawInput);
   const settings = await ensureGuildGallerySetup(interaction.guild.id);
 
   if (!settings.gallery_enabled) {
     throw new GalleryUserError('The gallery is currently disabled.');
   }
 
-  const created = await createSubmissionRecord(interaction, input, settings);
+  const created = await createSubmissionRecord(interaction, input, settings, options);
 
   try {
     const message = await galleryPostService.postSubmission(
@@ -115,6 +141,7 @@ async function submit(interaction) {
       updatedSubmission,
       interaction.user
     );
+    await notifyShowcasePosted(interaction.client, interaction.guild.id, updatedSubmission, message);
 
     return {
       submission: updatedSubmission,
@@ -139,6 +166,7 @@ async function listTags(guildId, category = null) {
 
 module.exports = {
   submit,
+  submitPrepared,
   listTags,
   ensureGuildGallerySetup
 };

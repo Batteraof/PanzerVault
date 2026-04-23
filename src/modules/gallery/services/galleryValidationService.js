@@ -90,12 +90,12 @@ function validateVideoLink(videoLinkInput) {
   return videoLink;
 }
 
-function getSubmitInput(interaction) {
-  const category = interaction.options.getString('category', true);
-  const attachments = getAttachmentOptions(interaction);
-  const caption = interaction.options.getString('caption') || '';
-  const videoLink = interaction.options.getString('video_link') || '';
-  const tagsInput = interaction.options.getString('tags') || '';
+function buildSubmitInput(rawInput) {
+  const category = rawInput.category;
+  const attachments = Array.isArray(rawInput.assets) ? rawInput.assets : [];
+  const caption = rawInput.caption || rawInput.description || '';
+  const videoLink = rawInput.videoLink || '';
+  const tagsInput = rawInput.tagsInput || '';
 
   validateCategory(category);
   validateAttachments(attachments);
@@ -109,7 +109,23 @@ function getSubmitInput(interaction) {
   };
 }
 
+function getSubmitInput(interaction) {
+  return buildSubmitInput({
+    category: interaction.options.getString('category', true),
+    assets: getAttachmentOptions(interaction),
+    caption: interaction.options.getString('description') || interaction.options.getString('caption') || '',
+    videoLink: interaction.options.getString('video_link') || '',
+    tagsInput: interaction.options.getString('tags') || ''
+  });
+}
+
 module.exports = {
+  buildSubmitInput,
+  getAttachmentOptions,
   getSubmitInput,
+  validateAttachments,
+  validateCaption,
+  validateCategory,
+  validateVideoLink,
   DISCORD_MENTION_PATTERN
 };

@@ -12,6 +12,7 @@ const { handleMessageCreate } = require('./events/message');
 const { handleMessageDelete } = require('./events/message/delete');
 const { handleVoiceStateUpdate } = require('./events/voice');
 const voiceTrackingService = require('./modules/leveling/services/voiceTrackingService');
+const communitySchedulerService = require('./modules/community/services/communitySchedulerService');
 
 config.validateConfig();
 
@@ -63,6 +64,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
 async function shutdown(signal) {
   logger.info(`Received ${signal}, shutting down`);
+  communitySchedulerService.stop();
   voiceTrackingService.stop();
   client.destroy();
   await db.close();

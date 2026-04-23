@@ -3,7 +3,10 @@ const botSettingsRepository = require('../../../db/repositories/botSettingsRepos
 
 function defaultsFromEnv() {
   return {
-    welcomeChannelId: config.channels.welcome || null
+    welcomeChannelId: config.channels.welcome || null,
+    rulesEnabled: config.onboarding.rulesEnabled,
+    rulesChannelId: config.channels.rules || null,
+    rulesVerifiedRoleId: config.channels.verifiedRoleId || null
   };
 }
 
@@ -25,8 +28,32 @@ async function updateWelcomeEnabled(guildId, enabled) {
   });
 }
 
+async function updateRulesChannel(guildId, channelId) {
+  await ensureGuildSettings(guildId);
+  return botSettingsRepository.updateSettings(guildId, {
+    rules_channel_id: channelId
+  });
+}
+
+async function updateRulesVerifiedRole(guildId, roleId) {
+  await ensureGuildSettings(guildId);
+  return botSettingsRepository.updateSettings(guildId, {
+    rules_verified_role_id: roleId
+  });
+}
+
+async function updateRulesEnabled(guildId, enabled) {
+  await ensureGuildSettings(guildId);
+  return botSettingsRepository.updateSettings(guildId, {
+    rules_enabled: enabled
+  });
+}
+
 module.exports = {
   ensureGuildSettings,
   updateWelcomeChannel,
-  updateWelcomeEnabled
+  updateWelcomeEnabled,
+  updateRulesChannel,
+  updateRulesVerifiedRole,
+  updateRulesEnabled
 };

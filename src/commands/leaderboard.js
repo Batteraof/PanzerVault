@@ -5,13 +5,14 @@ const { progressWithinLevel } = require('../modules/leveling/utils/xpFormula');
 function buildLeaderboardEmbed(guild, rows) {
   const lines = rows.map((row, index) => {
     const progress = progressWithinLevel(Number(row.total_xp));
-    return `#${index + 1} <@${row.user_id}> - Level ${progress.level} (${row.total_xp} XP)`;
+    return `${index + 1}. <@${row.user_id}>  |  Level ${progress.level}  |  ${row.total_xp} XP`;
   });
 
   return new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle(`${guild.name} Leaderboard`)
     .setDescription(lines.length > 0 ? lines.join('\n') : 'No ranked users yet.')
+    .setFooter({ text: `Showing top ${rows.length} member${rows.length === 1 ? '' : 's'}.` })
     .setTimestamp();
 }
 

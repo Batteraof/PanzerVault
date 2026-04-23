@@ -1,5 +1,19 @@
 module.exports = {
   JOIN_INFO: 'join_info',
   ROLES_MENU: 'roles_menu',
-  ROLE_SELECT: 'role_select'
+  ROLE_SELECT: 'role_select',
+  AGREE_RULES: 'agree_rules',
+  SKILL_SELECT: 'skill_select',
+  REGION_SELECT: 'region_select',
+  COACH_TOGGLE: 'coach_toggle',
+  EVENT_RSVP_PREFIX: 'event_rsvp',
+  SPOTLIGHT_VOTE_PREFIX: 'spotlight_vote',
+  GALLERY_WIZARD_PREFIX: 'gallery_wizard',
+  GALLERY_WIZARD_CATEGORY: 'gallery_wizard:category',
+  GALLERY_WIZARD_TAGS: 'gallery_wizard:tags',
+  GALLERY_WIZARD_DETAILS: 'gallery_wizard:details',
+  GALLERY_WIZARD_POST: 'gallery_wizard:post',
+  GALLERY_WIZARD_CANCEL: 'gallery_wizard:cancel',
+  GALLERY_WIZARD_CLEAR_TAGS: 'gallery_wizard:clear_tags',
+  GALLERY_WIZARD_DETAILS_MODAL: 'gallery_wizard:details_modal'
 };

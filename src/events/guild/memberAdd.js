@@ -19,34 +19,42 @@ async function handleGuildMemberAdd(member) {
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle('👋 Welcome to the Server! Check info to learn how to use our discord')
-    .setDescription(`Hey ${member}, welcome to **${member.guild.name}**! 🎉`)
+    .setTitle('Welcome to the Server')
+    .setDescription(`Hey ${member}, welcome to **${member.guild.name}**.`)
     .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
     .setImage('https://i.imgur.com/jNjayEQ.png')
     .addFields(
-      { name: '👥 Members', value: `${member.guild.memberCount}`, inline: true },
-      { name: '🌐 Site', value: 'Check our site', inline: true },
-      { name: '💬 General', value: 'Say hi in general!', inline: true }
+      { name: 'Members', value: `${member.guild.memberCount}`, inline: true },
+      { name: 'Site', value: 'Check our site.', inline: true },
+      { name: 'General', value: 'Say hi in general.', inline: true }
     )
-    .setFooter({ text: 'Enjoy your stay!' })
+    .setFooter({ text: 'Enjoy your stay.' })
     .setTimestamp();
+
+  if (settings.rules_enabled && settings.rules_channel_id) {
+    embed.addFields({
+      name: 'Unlock the Server',
+      value: `Read and accept the rules in <#${settings.rules_channel_id}> to see the rest of the server. After that you can pick your skill and region roles, and beginners can look for coaches to ask for help.`,
+      inline: false
+    });
+  }
 
   const row = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
-        .setLabel('✨ Join Info')
+        .setLabel('Join Info')
         .setStyle(ButtonStyle.Primary)
         .setCustomId(customIds.JOIN_INFO),
       new ButtonBuilder()
-        .setLabel('🌐 site')
+        .setLabel('Site')
         .setStyle(ButtonStyle.Link)
         .setURL(config.channels.siteUrl),
       new ButtonBuilder()
-        .setLabel('💬 General')
+        .setLabel('General')
         .setStyle(ButtonStyle.Link)
         .setURL(config.channels.generalUrl),
       new ButtonBuilder()
-        .setLabel('🎭 Select Roles')
+        .setLabel('Select Roles')
         .setStyle(ButtonStyle.Primary)
         .setCustomId(customIds.ROLES_MENU)
     );

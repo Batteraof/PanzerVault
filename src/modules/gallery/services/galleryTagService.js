@@ -39,7 +39,7 @@ async function validateTags(guildId, category, tagInput, client) {
 
   if (invalid.length > 0) {
     throw new GalleryUserError(
-      `Invalid gallery tag(s): ${invalid.map(tag => tag.tagName).join(', ')}. Use /gallery tags to see approved tags.`
+      `Invalid gallery tag(s): ${invalid.map(tag => tag.tagName).join(', ')}. Use /tags to see approved tags.`
     );
   }
 

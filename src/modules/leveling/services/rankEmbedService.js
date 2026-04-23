@@ -42,14 +42,21 @@ function buildRankEmbed(rankData, discordUser) {
   return new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle(`${titleName}'s Rank`)
+    .setThumbnail(discordUser ? discordUser.displayAvatarURL({ size: 256 }) : null)
     .addFields(
       { name: 'Level', value: `${rankData.level}`, inline: true },
       { name: 'Rank', value: rankData.rank ? `#${rankData.rank}` : 'Unranked', inline: true },
-      { name: 'Progress', value: `${nextLevelText}\n${rankData.progressBar}`, inline: false },
+      { name: 'Total XP', value: `${rankData.totalXp}`, inline: true },
+      {
+        name: 'Progress',
+        value: `${nextLevelText} (${rankData.progressPercentage}%)\n${rankData.progressBar}`,
+        inline: false
+      },
       { name: 'Streak', value: `${rankData.streak}`, inline: true },
       { name: 'Voice Time', value: formatDuration(rankData.totalVoiceSeconds), inline: true },
       { name: 'Messages', value: `${rankData.messageCount}`, inline: true }
     )
+    .setFooter({ text: 'Use /leaderboard to compare with the rest of the server.' })
     .setTimestamp();
 }
 

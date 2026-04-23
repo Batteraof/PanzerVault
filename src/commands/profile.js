@@ -37,13 +37,18 @@ module.exports = {
         { name: 'Level', value: `${rankData.level}`, inline: true },
         { name: 'Rank', value: rankData.rank ? `#${rankData.rank}` : 'Unranked', inline: true },
         { name: 'Total XP', value: `${rankData.totalXp}`, inline: true },
-        { name: 'Progress', value: rankData.progressBar, inline: false },
+        {
+          name: 'Progress',
+          value: `${rankData.currentLevelXp}/${rankData.xpNeededForNextLevel || rankData.currentLevelXp} XP (${rankData.progressPercentage}%)\n${rankData.progressBar}`,
+          inline: false
+        },
         { name: 'Streak', value: `${rankData.streak}`, inline: true },
         { name: 'Voice Time', value: rankEmbedService.formatDuration(rankData.totalVoiceSeconds), inline: true },
         { name: 'Messages', value: `${rankData.messageCount}`, inline: true },
         { name: 'Gallery Posts', value: `${galleryStats.posted_submissions}`, inline: true },
         { name: 'Gallery Removed', value: `${galleryStats.removed_submissions}`, inline: true }
       )
+      .setFooter({ text: 'Leveling and gallery stats in one view.' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

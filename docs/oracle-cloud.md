@@ -70,6 +70,6 @@ After changing slash commands, run:
 npm run commands:register
 ```
 
-This release adds `/config`, `/leaderboard`, `/profile`, `/ticket`, expands `/gallery`, and changes rank display to `/rank show` so `/rank reset` can exist as an admin subcommand.
+This release adds `/bot`, `/config`, `/leaderboard`, `/profile`, keeps public ticket actions under `/ticket`, moves staff ticket actions to `/ticket-manage`, simplifies public gallery use to `/submit` and `/tags`, keeps gallery moderation under `/gallery`, and moves admin rank resets to `/rank-reset`.
 
 Reward roles require the bot role to have Manage Roles and sit above any configured reward roles. Tickets require Manage Channels.

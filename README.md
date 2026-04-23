@@ -1,22 +1,44 @@
-# Discord Leveling Bot
+# PanzerVault Bot
 
-CommonJS Discord.js v14 bot with the existing welcome embed, role selection panel, button/select interactions, `!ping`, and a PostgreSQL-backed leveling foundation.
+CommonJS Discord.js v14 bot for Tanks Let Loose with:
 
-## What Changed
+- welcome flow
+- rules verification
+- onboarding role selection
+- PostgreSQL-backed leveling
+- guided gallery submissions
+- YouTube video submissions
+- tickets
+- event RSVPs and reminders
+- monthly Community Spotlight
+- weekly recap, anniversaries, and soft moderation
 
-- Preserved custom interaction IDs: `join_info`, `roles_menu`, `role_select`.
-- Preserved the original role IDs and welcome channel defaults.
-- Added PostgreSQL migrations and repositories.
-- Added text XP, voice XP, streak persistence, XP audit logs, achievements foundation, and `/rank`.
-- Added curated `/gallery submit`, `/gallery remove`, and `/gallery tags`.
-- Added restart-safe voice session recovery for VPS hosting.
-- Added laptop-friendly runtime defaults for local always-on hosting.
+The original bot behavior is preserved:
+
+- `join_info`
+- `roles_menu`
+- `role_select`
+- welcome embeds
+- self-role flow
+- `!ping`
+
+## Stack
+
+- Node.js 20+
+- Discord.js v14
+- PostgreSQL
+- JavaScript / CommonJS
+- long-running laptop or VPS hosting with `systemd`
 
 ## Setup
 
-1. Install Node.js 20+ and PostgreSQL.
-2. Copy `.env.example` to `.env` and fill in `TOKEN`, `DATABASE_URL`, and `CLIENT_ID`.
-3. Install dependencies:
+1. Copy `.env.example` to `.env`
+2. Fill in at least:
+   - `TOKEN`
+   - `DATABASE_URL`
+   - `CLIENT_ID`
+   - `GUILD_ID`
+3. Install packages:
 
 ```bash
 npm install
@@ -28,7 +50,7 @@ npm install
 npm run migrate
 ```
 
-5. Register `/rank` for your guild:
+5. Register guild slash commands:
 
 ```bash
 npm run commands:register
@@ -40,9 +62,9 @@ npm run commands:register
 npm start
 ```
 
-## Local Laptop Hosting
+## Laptop Hosting
 
-The current default profile is for an old laptop running locally:
+This repo is tuned for a small always-on laptop by default:
 
 ```env
 HOSTING_PROFILE=laptop
@@ -51,29 +73,21 @@ DB_IDLE_TIMEOUT_MS=10000
 VOICE_TRACKING_INTERVAL_MS=120000
 ```
 
-Run locally:
+Recommended service flow on Ubuntu:
 
 ```bash
 npm install
 npm run migrate
 npm run commands:register
-npm start
+sudo systemctl restart discord-bot
 ```
 
-For always-on notes on Windows, PM2, Task Scheduler, NSSM, and Linux, see [docs/laptop-hosting.md](docs/laptop-hosting.md).
-
-## Optional Oracle Cloud Ubuntu With PM2
+Useful commands:
 
 ```bash
-sudo apt update
-sudo apt install -y nodejs npm postgresql
-sudo npm install -g pm2
-npm install
-npm run migrate
-npm run commands:register
-pm2 start src/index.js --name discord-leveling-bot
-pm2 save
-pm2 startup
+sudo systemctl status discord-bot --no-pager
+sudo systemctl restart discord-bot
+sudo journalctl -u discord-bot -f
 ```
 
 ## Required Discord Intents
@@ -83,7 +97,7 @@ Enable these in the Discord developer portal:
 - Server Members Intent
 - Message Content Intent
 
-The code uses these gateway intents:
+The bot uses:
 
 - `Guilds`
 - `GuildMessages`
@@ -91,166 +105,219 @@ The code uses these gateway intents:
 - `GuildMembers`
 - `GuildVoiceStates`
 
-`GuildVoiceStates` is the only new intent required for the leveling foundation. It lets the bot track joins, leaves, channel switches, and self-deafen changes for voice XP.
+## Public Commands
 
-## Leveling Rules
+- `/bot`
+- `/rank`
+- `/leaderboard`
+- `/profile`
+- `/submit`
+- `/tags`
+- `/video`
+- `/spotlight`
+- `/ticket`
+
+## Staff Commands
+
+- `/config`
+- `/gallery`
+- `/event`
+- `/rank-reset`
+- `/spotlight-manage`
+- `/ticket-manage`
+
+Staff-only slash commands use default member permissions so normal members should not see them once commands are refreshed.
+
+## Rules And Onboarding
+
+When rules verification is enabled:
+
+- the bot keeps a pinned rules panel in the rules channel
+- members click **I Agree** to receive the verified role
+- after agreeing, they can immediately choose:
+  - skill: `Beginner / Medium / Expert`
+  - region: `EU / UK / NA / LATAM / AFRICA / SA / EA / SEA / OCE`
+- Medium and Expert members can opt into a coach role
+- beginners are told they can ping coaches for help
+
+Important: Discord channel permissions still need to be set so only the verified role can see the full server.
+
+## Leveling
 
 Text XP:
 
-- 15 second PostgreSQL-backed cooldown.
-- 1-3 words: 1 XP.
-- 4-5 words: 3 XP.
-- 6-15 words: 8 XP.
-- 16+ words: 12 XP.
+- 15 second cooldown
+- 1-3 words: 1 XP
+- 4-5 words: 3 XP
+- 6-15 words: 8 XP
+- 16+ words: 12 XP
 
 Voice XP:
 
-- 1 XP per 2 eligible minutes.
-- No XP in AFK channels.
-- No XP while alone.
-- No XP while self-deafened for the measured interval.
-- No session bonuses or multipliers.
+- 1 XP per 2 eligible minutes
+- no XP while alone
+- no XP in AFK channels
+- no XP while fully self-deafened
 
-Level curve:
+Curve:
 
 ```text
 xpForNextLevel(L) = 100 + 35 * L^2
 ```
 
-The maximum level is 500.
+Max level: `500`
 
-## Voice Restart Recovery
-
-On startup, the bot loads active `voice_sessions`.
-
-- If Discord still shows the member in the same voice channel, the session is kept and `last_checked_at` is advanced to startup time.
-- If the member is gone, the session is closed as `stale`.
-- If the member moved while the bot was offline, the old session is closed as `stale` and a new session starts from startup time.
-
-The bot intentionally does not award XP for downtime while it was offline because it cannot safely prove whether the user was alone, AFK, or self-deafened during that interval. This favors no double-awards and clean recovery over speculative XP.
+Progress is stored in PostgreSQL and survives restarts.
 
 ## Gallery
 
-The gallery is separate from leveling. Submissions do not grant XP, do not affect streaks, and do not assign rewards.
+Gallery posting is separate from leveling.
 
-Configure these env vars before first startup, or update `gallery_settings` in PostgreSQL later:
+- no XP
+- no streak gain
+- PostgreSQL-backed rate limits
+- moderation logs
+- DB-backed tags
+
+Public gallery flow:
+
+- `/submit`
+- upload `image_1` through `image_5`
+- choose category in the guided wizard
+- choose approved tags
+- add description and optional YouTube link in a modal
+- review and post
+
+Gallery categories:
+
+- `showcase`
+- `meme`
+
+The bot keeps pinned guide messages in the showcase and meme channels.
+
+Showcase posts can also send a short heads-up in the configured community channel.
+
+## Video Channel
+
+Use `/video` to post a YouTube link into the dedicated video channel.
+
+- title required
+- description optional
+- YouTube links only
+- optional short notification in the main community chat
+- no XP for video posts
+
+The bot keeps a pinned guide message in the video channel when it is configured.
+
+## Events
+
+Staff create events with `/event create`.
+
+Each event post includes:
+
+- event title
+- date/time
+- optional description
+- optional external link
+- RSVP buttons:
+  - Going
+  - Maybe
+  - Not Going
+
+Reminder cadence:
+
+- 3 days before
+- 1 day before
+
+RSVP is shown publicly as counts only.
+
+## Community Spotlight
+
+Monthly spotlight system with:
+
+- member nominations
+- member voting
+- staff disqualification tools
+- staff tie resolution
+- dedicated spotlight archive channel
+- temporary spotlight role for the winner
+- 3-month cooldown before repeat wins
+
+No XP is tied to spotlight.
+
+## Weekly Recap And Anniversaries
+
+The community scheduler can post:
+
+- weekly recap in the community channel
+- Discord join anniversaries in the leveling chat
+
+Weekly recap includes:
+
+- message volume
+- unique chatters
+- new members
+- voice hours
+- gallery posts
+- video posts
+- events created
+- top active channels
+- optional staff note
+
+## Soft Moderation
+
+Soft moderation is lightweight and laptop-safe.
+
+Current scope:
+
+- repeated-message spam
+- message flood
+- excessive mentions
+- obvious link spam
+
+Behavior:
+
+- warn the user
+- auto-delete obvious spam
+- log the incident to the moderation log channel when configured
+
+## Admin Config
+
+Main config groups:
+
+- `/config welcome ...`
+- `/config leveling ...`
+- `/config gallery ...`
+- `/config onboarding ...`
+- `/config community ...`
+- `/config rewards ...`
+- `/config tickets ...`
+- `/config rules ...`
+
+Examples:
+
+- `/config rules channel`
+- `/config rules verified-role`
+- `/config onboarding skill-role`
+- `/config onboarding region-role`
+- `/config onboarding coach-role`
+- `/config community video-channel`
+- `/config community spotlight-channel`
+- `/config community spotlight-role`
+- `/config community event-channel`
+- `/config community moderation-log-channel`
+- `/config leveling info-channel`
+
+## Deploy Update Flow
+
+After local code changes:
 
 ```bash
-GALLERY_SHOWCASE_CHANNEL_ID=123
-GALLERY_MEME_CHANNEL_ID=456
-GALLERY_LOG_CHANNEL_ID=789
-```
-
-Commands:
-
-```bash
-/gallery submit
-/gallery tags
-/gallery remove
-/gallery blacklist
-/gallery unblacklist
-```
-
-`/gallery submit` accepts:
-
-- `category`: `showcase` or `meme`
-- `image_1` through `image_5`: PNG/JPG only
-- `caption`: optional, max 300 characters, Discord mentions rejected
-- `video_link`: optional YouTube URL only
-- `tags`: optional comma-separated approved tags
-
-Tag UX is intentionally simple for V1: a comma-separated string is validated against approved tags in PostgreSQL. Initial tags are seeded per guild: `US Tanks`, `GER Tanks`, `USSR Tanks`. The schema supports active/inactive tags and category-specific tag availability later.
-
-Multiple images are posted as one message with up to five embeds. The bot re-uploads the submitted Discord attachments to the gallery message and references them via `attachment://...`, which keeps the public post self-contained.
-
-Moderation model:
-
-- Valid submissions are auto-posted immediately.
-- Moderators with Manage Messages or Manage Server can remove by submission ID or gallery message ID.
-- Moderators with Manage Messages or Manage Server can blacklist or unblacklist users from gallery submissions.
-- Removals update PostgreSQL, attempt to delete the public message, and log to the configured gallery log channel.
-- If a gallery message is deleted directly in Discord and the bot receives the delete event, the matching DB submission is marked removed and logged.
-
-Historical moderation standard:
-
-- Allowed: historical WW2/game-related context, faction-based gameplay screenshots, and relevant community creations.
-- Not allowed: extremist glorification, propaganda-style posting, hate-oriented or provocative ideological captions, or abuse disguised as historical content.
-- The bot validates format, tags, mentions, and rate limits; staff handle context-sensitive moderation.
-
-Gallery rate limits are persisted in PostgreSQL:
-
-- 1 submission every 6 hours per user
-- max 3 submissions per rolling 24 hours
-
-## Admin Config Commands
-
-Register slash commands after deploying changes:
-
-```bash
+git pull
+npm install
+npm run migrate
 npm run commands:register
+sudo systemctl restart discord-bot
 ```
 
-Admin commands require Manage Server unless noted otherwise.
-
-```bash
-/config welcome channel
-/config welcome enabled
-/config leveling channel
-/config leveling enabled
-/config leveling text-xp
-/config leveling voice-xp
-/config leveling dm-levelups
-/config gallery showcase-channel
-/config gallery meme-channel
-/config gallery log-channel
-/config gallery enabled
-/config gallery add-tag
-/config gallery remove-tag
-/config rewards add-role
-/config rewards remove-role
-/config rewards list
-/config rewards sync-user
-/config tickets category
-/config tickets log-channel
-/config tickets support-role
-/config tickets enabled
-```
-
-Rank and profile commands:
-
-```bash
-/rank show
-/rank reset
-/leaderboard
-/profile
-```
-
-`/rank reset` is admin-only and writes a manual XP audit row.
-
-Reward roles:
-
-- Configure them with `/config rewards add-role`.
-- The bot assigns configured reward roles automatically when users level up.
-- `/rank reset` syncs reward roles back down after resetting a member.
-- `/config rewards sync-user` lets staff sync a member after adding or changing reward roles.
-- The bot needs Manage Roles and must be higher than reward roles in the Discord role hierarchy.
-
-Tickets:
-
-```bash
-/ticket open
-/ticket close
-/ticket add
-/ticket remove
-```
-
-Configure ticket category/log/support role through `/config tickets ...`. The bot needs Manage Channels to create and close ticket channels.
-
-## Phase 2 Ideas
-
-- Gallery restore flow.
-- Timed gallery blacklist entries.
-- Ticket transcripts.
-- Stronger anti-spam similarity checks.
-- Configurable achievement definitions.
-- Richer level-up embeds.
+Refresh Discord with `Ctrl + R` after command changes so stale command entries disappear.

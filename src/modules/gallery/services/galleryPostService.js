@@ -11,9 +11,14 @@ function categoryColor(category) {
   return 0x5865F2;
 }
 
+function categoryIcon(category) {
+  if (category === CATEGORIES.MEME) return 'Meme';
+  return 'Showcase';
+}
+
 function formatTags(tags) {
   if (!tags || tags.length === 0) return null;
-  return tags.map(tag => tag.tag_name).join(', ');
+  return tags.map(tag => `\`${tag.tag_name}\``).join(' ');
 }
 
 function buildGalleryEmbeds(submission, assets, tags, submitter) {
@@ -27,16 +32,19 @@ function buildGalleryEmbeds(submission, assets, tags, submitter) {
       .setColor(categoryColor(submission.category))
       .setImage(`attachment://${fileName}`)
       .setTimestamp(new Date(submission.created_at || Date.now()))
-      .setFooter({ text: `Gallery submission #${submission.id}` });
+      .setFooter({ text: `Submission #${submission.id}` });
 
     if (embeds.length === 0) {
       embed
-        .setTitle(`${categoryLabel} Gallery`)
+        .setTitle(`${categoryIcon(submission.category)} Gallery Post`)
         .setAuthor({
           name: submitter ? submitter.username : `User ${submission.user_id}`,
           iconURL: submitter ? submitter.displayAvatarURL({ size: 128 }) : undefined
         })
-        .addFields({ name: 'Category', value: categoryLabel, inline: true });
+        .addFields(
+          { name: 'Category', value: categoryLabel, inline: true },
+          { name: 'Submitted By', value: `<@${submission.user_id}>`, inline: true }
+        );
 
       if (submission.caption) {
         embed.setDescription(submission.caption);

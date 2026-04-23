@@ -11,7 +11,7 @@ function messageForError(error) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ticket')
-    .setDescription('Open and manage support tickets.')
+    .setDescription('Open your own support ticket.')
     .addSubcommand(subcommand =>
       subcommand
         .setName('open')
@@ -27,48 +27,13 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('close')
-        .setDescription('Close the current ticket, or a ticket by ID.')
+        .setDescription('Close your current ticket.')
         .addStringOption(option =>
           option
             .setName('reason')
             .setDescription('Optional close reason.')
             .setRequired(false)
             .setMaxLength(300)
-        )
-        .addBooleanOption(option =>
-          option
-            .setName('delete_channel')
-            .setDescription('Delete the ticket channel after closing.')
-            .setRequired(false)
-        )
-        .addIntegerOption(option =>
-          option
-            .setName('ticket_id')
-            .setDescription('Optional ticket ID to close.')
-            .setRequired(false)
-            .setMinValue(1)
-        )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('add')
-        .setDescription('Add a user to the current ticket.')
-        .addUserOption(option =>
-          option
-            .setName('user')
-            .setDescription('User to add.')
-            .setRequired(true)
-        )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('remove')
-        .setDescription('Remove a user from the current ticket.')
-        .addUserOption(option =>
-          option
-            .setName('user')
-            .setDescription('User to remove.')
-            .setRequired(true)
         )
     ),
 
@@ -88,33 +53,20 @@ module.exports = {
       if (subcommand === 'open') {
         const subject = interaction.options.getString('subject') || null;
         const result = await ticketService.openTicket(interaction, subject);
-        await interaction.editReply(`Success: opened ticket #${result.ticket.id} in ${result.channel}.`);
+        await interaction.editReply(`Ticket #${result.ticket.id} is open in ${result.channel}.`);
         return;
       }
 
       if (subcommand === 'close') {
         const reason = interaction.options.getString('reason') || null;
-        const deleteChannel = interaction.options.getBoolean('delete_channel') || false;
-        const ticketId = interaction.options.getInteger('ticket_id');
-        const result = await ticketService.closeTicket(interaction, reason, deleteChannel, ticketId);
-        await interaction.editReply(`Success: closed ticket #${result.id}.`);
+        const result = await ticketService.closeTicket(interaction, reason, false, null);
+        await interaction.editReply(`Ticket #${result.id} was closed.`);
         return;
       }
 
-      if (subcommand === 'add') {
-        const targetUser = interaction.options.getUser('user', true);
-        const ticket = await ticketService.addUser(interaction, targetUser);
-        await interaction.editReply(`Success: added ${targetUser} to ticket #${ticket.id}.`);
-        return;
-      }
-
-      if (subcommand === 'remove') {
-        const targetUser = interaction.options.getUser('user', true);
-        const ticket = await ticketService.removeUser(interaction, targetUser);
-        await interaction.editReply(`Success: removed ${targetUser} from ticket #${ticket.id}.`);
-      }
+      await interaction.editReply('That ticket command is no longer active. Refresh Discord and try again.');
     } catch (error) {
-      await interaction.editReply(`Error: ${messageForError(error)}`);
+      await interaction.editReply(messageForError(error));
     }
   }
 };

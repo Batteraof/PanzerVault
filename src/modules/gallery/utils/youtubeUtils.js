@@ -19,6 +19,21 @@ function validateYoutubeUrl(input) {
   return url.toString();
 }
 
+function youtubeVideoId(input) {
+  const valid = validateYoutubeUrl(input);
+  if (!valid) return null;
+
+  const url = new URL(valid);
+  const hostname = url.hostname.toLowerCase();
+
+  if (hostname.includes('youtu.be')) {
+    return url.pathname.replace(/\//g, '') || null;
+  }
+
+  return url.searchParams.get('v') || null;
+}
+
 module.exports = {
-  validateYoutubeUrl
+  validateYoutubeUrl,
+  youtubeVideoId
 };

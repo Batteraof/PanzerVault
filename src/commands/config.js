@@ -4,6 +4,7 @@ const {
   SlashCommandBuilder
 } = require('discord.js');
 const configCommandService = require('../modules/admin/services/configCommandService');
+const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
 const logger = require('../logger');
 
 const textChannelTypes = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
@@ -48,6 +49,36 @@ function addRoleOption(subcommand, description) {
       .setName('role')
       .setDescription(description)
       .setRequired(true)
+  );
+}
+
+function addSkillChoiceOption(subcommand) {
+  return subcommand.addStringOption(option =>
+    option
+      .setName('skill')
+      .setDescription('Skill bucket to configure.')
+      .setRequired(true)
+      .addChoices(
+        ...onboardingRoleService.SKILL_OPTIONS.map(optionValue => ({
+          name: optionValue.label,
+          value: optionValue.key
+        }))
+      )
+  );
+}
+
+function addRegionChoiceOption(subcommand) {
+  return subcommand.addStringOption(option =>
+    option
+      .setName('region')
+      .setDescription('Region bucket to configure.')
+      .setRequired(true)
+      .addChoices(
+        ...onboardingRoleService.REGION_OPTIONS.map(optionValue => ({
+          name: optionValue.label,
+          value: optionValue.key
+        }))
+      )
   );
 }
 
@@ -121,6 +152,14 @@ module.exports = {
               .setDescription('Enable or disable level-up DMs.')
           )
         )
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('info-channel')
+              .setDescription('Set the channel used for the leveling guide panel.'),
+            'Channel for the leveling guide panel.'
+          )
+        )
     )
     .addSubcommandGroup(group =>
       group
@@ -182,6 +221,54 @@ module.exports = {
                 .setRequired(true)
                 .setMaxLength(60)
             )
+        )
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('onboarding')
+        .setDescription('Configure onboarding roles and the coach flow.')
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('enabled')
+              .setDescription('Enable or disable onboarding role prompts.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('community-channel')
+              .setDescription('Set the main community channel used for notifications.'),
+            'Main chat channel for showcase, video, and recap notices.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addRoleOption(
+            addSkillChoiceOption(
+              subcommand
+                .setName('skill-role')
+                .setDescription('Set the role for one skill level.')
+            ),
+            'Role to assign for that skill level.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addRoleOption(
+            addRegionChoiceOption(
+              subcommand
+                .setName('region-role')
+                .setDescription('Set the role for one region option.')
+            ),
+            'Role to assign for that region.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addRoleOption(
+            subcommand
+              .setName('coach-role')
+              .setDescription('Set the coach role for medium and expert players.'),
+            'Coach role.'
+          )
         )
     )
     .addSubcommandGroup(group =>
@@ -276,6 +363,133 @@ module.exports = {
             subcommand
               .setName('enabled')
               .setDescription('Enable or disable ticket creation.')
+          )
+        )
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('community')
+        .setDescription('Configure spotlight, video, event, recap, and moderation systems.')
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('video-channel')
+              .setDescription('Set the channel used for video submissions.'),
+            'Video channel.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('video-enabled')
+              .setDescription('Enable or disable video submissions.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('spotlight-channel')
+              .setDescription('Set the archive-style spotlight channel.'),
+            'Spotlight channel.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addRoleOption(
+            subcommand
+              .setName('spotlight-role')
+              .setDescription('Set the temporary spotlight winner role.'),
+            'Spotlight role.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('spotlight-enabled')
+              .setDescription('Enable or disable the spotlight system.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('event-channel')
+              .setDescription('Set the event channel used for event posts and reminders.'),
+            'Event channel.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('event-enabled')
+              .setDescription('Enable or disable event posts and reminders.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('anniversary-enabled')
+              .setDescription('Enable or disable server anniversary shoutouts.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('weekly-recap-enabled')
+              .setDescription('Enable or disable the weekly recap.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('soft-moderation-enabled')
+              .setDescription('Enable or disable soft moderation.')
+          )
+        )
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('moderation-log-channel')
+              .setDescription('Set the moderation log channel.'),
+            'Moderation log channel.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          subcommand
+            .setName('weekly-note')
+            .setDescription('Set an optional note for the next weekly recap.')
+            .addStringOption(option =>
+              option
+                .setName('text')
+                .setDescription('Short note to include in the next recap.')
+                .setRequired(true)
+                .setMaxLength(300)
+            )
+        )
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('rules')
+        .setDescription('Configure the rules gate and verified role.')
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('channel')
+              .setDescription('Set the rules channel used for verification.'),
+            'Channel where the rules panel should live.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addRoleOption(
+            subcommand
+              .setName('verified-role')
+              .setDescription('Set the role granted after accepting the rules.'),
+            'Role granted after rules acceptance.'
+          )
+        )
+        .addSubcommand(subcommand =>
+          addEnabledOption(
+            subcommand
+              .setName('enabled')
+              .setDescription('Enable or disable rules verification.')
           )
         )
     ),

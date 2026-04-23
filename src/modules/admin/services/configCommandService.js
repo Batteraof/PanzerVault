@@ -6,6 +6,10 @@ const gallerySettingsRepository = require('../../../db/repositories/gallerySetti
 const galleryTagService = require('../../gallery/services/galleryTagService');
 const rewardRoleService = require('../../rewards/services/rewardRoleService');
 const ticketSettingsService = require('../../tickets/services/ticketSettingsService');
+const serverPanelService = require('../../config/services/serverPanelService');
+const communitySettingsService = require('../../config/services/communitySettingsService');
+const onboardingRoleService = require('../../config/services/onboardingRoleService');
+const { setupRolePanel } = require('../../../lib/rolePanel');
 const userRepository = require('../../../db/repositories/userRepository');
 
 function assertManageGuild(interaction) {
@@ -41,6 +45,7 @@ async function handleLeveling(interaction) {
     await guildSettingsRepository.updateSettings(interaction.guild.id, {
       levelup_channel_id: channel.id
     });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
     return `Level-up announcements will now use ${channel}.`;
   }
 
@@ -76,6 +81,15 @@ async function handleLeveling(interaction) {
     return `Level-up DMs are now ${enabled ? 'enabled' : 'disabled'}.`;
   }
 
+  if (subcommand === 'info-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await guildSettingsRepository.updateSettings(interaction.guild.id, {
+      info_channel_id: channel.id
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `The leveling guide panel will now use ${channel}.`;
+  }
+
   return 'Unknown leveling config action.';
 }
 
@@ -93,6 +107,7 @@ async function handleGallery(interaction) {
     await gallerySettingsRepository.updateSettings(interaction.guild.id, {
       showcase_channel_id: channel.id
     });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
     return `Showcase gallery posts will now use ${channel}.`;
   }
 
@@ -101,6 +116,7 @@ async function handleGallery(interaction) {
     await gallerySettingsRepository.updateSettings(interaction.guild.id, {
       meme_channel_id: channel.id
     });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
     return `Meme gallery posts will now use ${channel}.`;
   }
 
@@ -117,6 +133,7 @@ async function handleGallery(interaction) {
     await gallerySettingsRepository.updateSettings(interaction.guild.id, {
       gallery_enabled: enabled
     });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
     return `Gallery submissions are now ${enabled ? 'enabled' : 'disabled'}.`;
   }
 
@@ -200,6 +217,164 @@ async function handleRewards(interaction) {
   return 'Unknown rewards config action.';
 }
 
+async function handleOnboarding(interaction) {
+  const subcommand = interaction.options.getSubcommand();
+  await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+
+  if (subcommand === 'enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      onboarding_enabled: enabled
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    await setupRolePanel(interaction.client);
+    return `Onboarding prompts are now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'community-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      community_channel_id: channel.id
+    });
+    return `Community notifications will now use ${channel}.`;
+  }
+
+  if (subcommand === 'skill-role') {
+    const skill = interaction.options.getString('skill', true);
+    const role = interaction.options.getRole('role', true);
+    await onboardingRoleService.setSkillRole(interaction.guild.id, skill, role.id);
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    await setupRolePanel(interaction.client);
+    return `Onboarding skill role for ${skill} now uses ${role}.`;
+  }
+
+  if (subcommand === 'region-role') {
+    const region = interaction.options.getString('region', true);
+    const role = interaction.options.getRole('role', true);
+    await onboardingRoleService.setRegionRole(interaction.guild.id, region, role.id);
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    await setupRolePanel(interaction.client);
+    return `Onboarding region role for ${region.toUpperCase()} now uses ${role}.`;
+  }
+
+  if (subcommand === 'coach-role') {
+    const role = interaction.options.getRole('role', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      coach_role_id: role.id
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    await setupRolePanel(interaction.client);
+    return `Coach opt-in now uses ${role}.`;
+  }
+
+  return 'Unknown onboarding config action.';
+}
+
+async function handleCommunity(interaction) {
+  const subcommand = interaction.options.getSubcommand();
+  await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+
+  if (subcommand === 'video-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      video_channel_id: channel.id
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Video submissions will now use ${channel}.`;
+  }
+
+  if (subcommand === 'video-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      video_enabled: enabled
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Video submissions are now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'spotlight-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      spotlight_channel_id: channel.id
+    });
+    return `Community Spotlight will now use ${channel}.`;
+  }
+
+  if (subcommand === 'spotlight-role') {
+    const role = interaction.options.getRole('role', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      spotlight_role_id: role.id
+    });
+    return `Community Spotlight winners will now receive ${role}.`;
+  }
+
+  if (subcommand === 'spotlight-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      spotlight_enabled: enabled
+    });
+    return `Community Spotlight is now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'event-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      event_channel_id: channel.id
+    });
+    return `Event posts will now use ${channel}.`;
+  }
+
+  if (subcommand === 'event-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      event_enabled: enabled
+    });
+    return `Events are now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'anniversary-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      anniversary_enabled: enabled
+    });
+    return `Server anniversary shoutouts are now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'weekly-recap-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      weekly_recap_enabled: enabled
+    });
+    return `Weekly recap is now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'soft-moderation-enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      soft_moderation_enabled: enabled
+    });
+    return `Soft moderation is now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  if (subcommand === 'moderation-log-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      moderation_log_channel_id: channel.id
+    });
+    return `Soft moderation logs will now use ${channel}.`;
+  }
+
+  if (subcommand === 'weekly-note') {
+    const text = interaction.options.getString('text', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      weekly_recap_note: text
+    });
+    return 'The next weekly recap will include that staff highlight.';
+  }
+
+  return 'Unknown community config action.';
+}
+
 async function handleTickets(interaction) {
   const subcommand = interaction.options.getSubcommand();
   await ticketSettingsService.ensureGuildSettings(interaction.guild.id);
@@ -239,6 +414,34 @@ async function handleTickets(interaction) {
   return 'Unknown ticket config action.';
 }
 
+async function handleRules(interaction) {
+  const subcommand = interaction.options.getSubcommand();
+  await botSettingsService.ensureGuildSettings(interaction.guild.id);
+
+  if (subcommand === 'channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await botSettingsService.updateRulesChannel(interaction.guild.id, channel.id);
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Rules verification will now use ${channel}.`;
+  }
+
+  if (subcommand === 'verified-role') {
+    const role = interaction.options.getRole('role', true);
+    await botSettingsService.updateRulesVerifiedRole(interaction.guild.id, role.id);
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Members who accept the rules will now receive ${role}.`;
+  }
+
+  if (subcommand === 'enabled') {
+    const enabled = interaction.options.getBoolean('enabled', true);
+    await botSettingsService.updateRulesEnabled(interaction.guild.id, enabled);
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Rules verification is now ${enabled ? 'enabled' : 'disabled'}.`;
+  }
+
+  return 'Unknown rules config action.';
+}
+
 async function execute(interaction) {
   assertManageGuild(interaction);
 
@@ -247,8 +450,11 @@ async function execute(interaction) {
   if (group === 'welcome') return handleWelcome(interaction);
   if (group === 'leveling') return handleLeveling(interaction);
   if (group === 'gallery') return handleGallery(interaction);
+  if (group === 'onboarding') return handleOnboarding(interaction);
   if (group === 'rewards') return handleRewards(interaction);
   if (group === 'tickets') return handleTickets(interaction);
+  if (group === 'community') return handleCommunity(interaction);
+  if (group === 'rules') return handleRules(interaction);
 
   return 'Unknown config group.';
 }
