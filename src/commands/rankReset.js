@@ -1,5 +1,6 @@
 const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const rankAdminService = require('../modules/admin/services/rankAdminService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -38,7 +39,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Resetting rank...');
 
     try {
       const targetUser = interaction.options.getUser('user', true);

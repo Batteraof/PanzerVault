@@ -1,5 +1,6 @@
 const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const eventService = require('../modules/community/services/eventService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -64,7 +65,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Updating event...');
 
     try {
       const subcommand = interaction.options.getSubcommand();

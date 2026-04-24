@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const ticketService = require('../modules/tickets/services/ticketService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function messageForError(error) {
@@ -47,7 +48,7 @@ module.exports = {
     }
 
     const subcommand = interaction.options.getSubcommand();
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Working on your ticket...');
 
     try {
       if (subcommand === 'open') {

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const videoService = require('../modules/community/services/videoService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -33,7 +34,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Posting your video...');
 
     try {
       const result = await videoService.submit(interaction);

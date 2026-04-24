@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const galleryWizardService = require('../modules/gallery/services/galleryWizardService');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function userMessageForError(error) {
@@ -62,7 +63,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Opening the submit wizard...');
 
     try {
       await galleryWizardService.start(interaction);

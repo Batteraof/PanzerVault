@@ -5,6 +5,7 @@ const {
 } = require('discord.js');
 const configCommandService = require('../modules/admin/services/configCommandService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 const textChannelTypes = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
@@ -503,7 +504,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Updating config...');
 
     try {
       const message = await configCommandService.execute(interaction);

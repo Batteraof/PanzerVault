@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const galleryService = require('../modules/gallery/services/galleryService');
 const { CATEGORIES } = require('../modules/gallery/constants/galleryConfig');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function userMessageForError(error) {
@@ -37,7 +38,7 @@ module.exports = {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await beginEphemeralReply(interaction, 'Loading approved tags...');
 
     try {
       const category = interaction.options.getString('category');
