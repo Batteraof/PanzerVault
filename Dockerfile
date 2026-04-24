@@ -1,10 +1,14 @@
 FROM node:20-bookworm-slim
 
+ENV NODE_ENV=production
+
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
-COPY . .
+COPY --chown=node:node . .
 
-CMD ["npm", "start"]
+USER node
+
+CMD ["node", "src/index.js"]
