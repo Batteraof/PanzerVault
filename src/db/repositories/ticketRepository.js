@@ -4,14 +4,21 @@ function executor(client) {
   return client || db;
 }
 
-async function createTicket(guildId, userId, subject, client) {
+async function createTicket(guildId, userId, subject, client, options = {}) {
   const result = await executor(client).query(
     `
-    INSERT INTO tickets (guild_id, user_id, subject)
-    VALUES ($1, $2, $3)
+    INSERT INTO tickets (guild_id, user_id, subject, category, priority, details)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *
     `,
-    [guildId, userId, subject || null]
+    [
+      guildId,
+      userId,
+      subject || null,
+      options.category || 'support',
+      options.priority || 'normal',
+      options.details || null
+    ]
   );
 
   return result.rows[0];
@@ -97,11 +104,28 @@ async function closeTicket(ticketId, closedBy, reason = null, client) {
   return result.rows[0] || null;
 }
 
+async function markFirstResponse(ticketId, actorId, client) {
+  const result = await executor(client).query(
+    `
+    UPDATE tickets
+    SET first_response_at = COALESCE(first_response_at, now())
+    WHERE id = $1
+      AND user_id <> $2
+      AND status = 'open'
+    RETURNING *
+    `,
+    [ticketId, actorId]
+  );
+
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createTicket,
   setTicketChannel,
   findOpenByUser,
   findOpenByChannel,
   findById,
-  closeTicket
+  closeTicket,
+  markFirstResponse
 };
