@@ -193,7 +193,7 @@ app.get('/api/analytics', async (req, res, next) => {
     const guildId = resolveGuildId(req);
     const result = await db.query(
       `
-      SELECT day::date,
+      SELECT series.day::date,
         COALESCE(messages.count, 0)::integer AS messages,
         COALESCE(gallery.count, 0)::integer AS gallery_posts,
         COALESCE(videos.count, 0)::integer AS video_posts
@@ -201,29 +201,29 @@ app.get('/api/analytics', async (req, res, next) => {
         date_trunc('day', now() - interval '13 days'),
         date_trunc('day', now()),
         interval '1 day'
-      ) AS day
+      ) AS series(day)
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS count
         FROM community_message_activity
         WHERE guild_id = $1
-          AND created_at >= day
-          AND created_at < day + interval '1 day'
+          AND created_at >= series.day
+          AND created_at < series.day + interval '1 day'
       ) messages ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS count
         FROM gallery_submissions
         WHERE guild_id = $1
-          AND created_at >= day
-          AND created_at < day + interval '1 day'
+          AND created_at >= series.day
+          AND created_at < series.day + interval '1 day'
       ) gallery ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS count
         FROM video_submissions
         WHERE guild_id = $1
-          AND created_at >= day
-          AND created_at < day + interval '1 day'
+          AND created_at >= series.day
+          AND created_at < series.day + interval '1 day'
       ) videos ON true
-      ORDER BY day ASC
+      ORDER BY series.day ASC
       `,
       [guildId]
     );
