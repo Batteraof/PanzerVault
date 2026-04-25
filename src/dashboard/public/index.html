@@ -34,7 +34,7 @@
             <div>
               <p>Live operations dashboard</p>
               <h1>PanzerVault Bot</h1>
-              <span>Events, content, XP, tickets, and recognition in one place.</span>
+              <span>Monitor events, creator content, support load, and engagement without leaving the field.</span>
             </div>
           </div>
         </section>
@@ -44,7 +44,10 @@
             <strong id="view-title">Overview</strong>
             <span id="view-subtitle">Community pulse and next actions</span>
           </div>
-          <button id="refresh-button" type="button">Refresh</button>
+          <div class="toolbar-actions">
+            <span id="last-updated" class="toolbar-status" aria-live="polite">Waiting for first refresh...</span>
+            <button id="refresh-button" type="button">Refresh</button>
+          </div>
         </section>
 
         <section id="overview" class="view active">
@@ -52,22 +55,22 @@
             <article class="stat-card">
               <span>Active Users</span>
               <strong id="active-users">0</strong>
-              <small>Last 30 days</small>
+              <small>Members seen in the last 30 days</small>
             </article>
             <article class="stat-card">
               <span>Upcoming Events</span>
               <strong id="event-count">0</strong>
-              <small>Scheduled</small>
+              <small>Scheduled and ready for RSVP</small>
             </article>
             <article class="stat-card">
               <span>Open Tickets</span>
               <strong id="open-tickets">0</strong>
-              <small>Needs attention</small>
+              <small>Queues that still need attention</small>
             </article>
             <article class="stat-card">
               <span>Featured Content</span>
               <strong id="content-count">0</strong>
-              <small>Recent posts</small>
+              <small>Recent showcase or video posts</small>
             </article>
           </div>
           <div class="two-column">
@@ -129,7 +132,8 @@
               <span>Visual configuration surface for the next dashboard phase</span>
             </header>
             <div class="empty-state">
-              Role and onboarding editing is scaffolded here so it can be connected to the existing config services without changing the live Discord flow first.
+              <strong>Role editing comes next.</strong>
+              <span>This space is reserved for a safe visual layer on top of the existing onboarding config, so the live Discord flow can stay stable while we improve the controls.</span>
             </div>
           </article>
         </section>

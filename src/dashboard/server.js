@@ -8,6 +8,10 @@ const logger = require('../logger');
 const app = express();
 const port = Number(process.env.DASHBOARD_PORT || 3000);
 const publicDir = path.join(__dirname, 'public');
+const discordApiBase = 'https://discord.com/api/v10';
+const memberCache = new Map();
+const MEMBER_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_MEMBER_LOOKUPS_PER_REQUEST = 24;
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '128kb' }));
@@ -23,6 +27,123 @@ async function queryOne(sql, params) {
   const result = await db.query(sql, params);
   return result.rows[0] || null;
 }
+
+function cacheKey(guildId, userId) {
+  return `${guildId}:${userId}`;
+}
+
+function fallbackProfile(userId) {
+  const safeId = String(userId || 'unknown');
+  return {
+    userId: safeId,
+    displayName: `Member ${safeId.slice(-4)}`,
+    username: null
+  };
+}
+
+function normalizeProfile(userId, payload = {}) {
+  const user = payload.user || {};
+  const fallback = fallbackProfile(userId);
+  return {
+    userId: String(userId),
+    displayName: payload.nick || user.global_name || user.username || fallback.displayName,
+    username: user.username || null
+  };
+}
+
+function getCachedProfile(guildId, userId) {
+  const cached = memberCache.get(cacheKey(guildId, userId));
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    memberCache.delete(cacheKey(guildId, userId));
+    return null;
+  }
+  return cached.profile;
+}
+
+function cacheProfile(guildId, profile) {
+  memberCache.set(cacheKey(guildId, profile.userId), {
+    expiresAt: Date.now() + MEMBER_CACHE_TTL_MS,
+    profile
+  });
+  return profile;
+}
+
+async function fetchMemberProfile(guildId, userId) {
+  if (!process.env.TOKEN) {
+    return fallbackProfile(userId);
+  }
+
+  try {
+    const response = await fetch(`${discordApiBase}/guilds/${guildId}/members/${userId}`, {
+      headers: {
+        Authorization: `Bot ${process.env.TOKEN}`,
+        'User-Agent': 'PanzerVaultDashboard/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status !== 404) {
+        logger.warn(`Dashboard member lookup failed for ${userId} with status ${response.status}`);
+      }
+      return cacheProfile(guildId, fallbackProfile(userId));
+    }
+
+    const payload = await response.json();
+    return cacheProfile(guildId, normalizeProfile(userId, payload));
+  } catch (error) {
+    logger.warn(`Dashboard member lookup failed for ${userId}`, error);
+    return cacheProfile(guildId, fallbackProfile(userId));
+  }
+}
+
+async function resolveMemberProfiles(guildId, userIds, limit = MAX_MEMBER_LOOKUPS_PER_REQUEST) {
+  const uniqueIds = [...new Set((userIds || []).filter(Boolean).map(value => String(value)))];
+  const profiles = new Map();
+  const pending = [];
+
+  for (const userId of uniqueIds) {
+    const cached = getCachedProfile(guildId, userId);
+    if (cached) {
+      profiles.set(userId, cached);
+      continue;
+    }
+
+    if (pending.length < limit) {
+      pending.push(userId);
+      continue;
+    }
+
+    profiles.set(userId, fallbackProfile(userId));
+  }
+
+  const fetched = await Promise.all(pending.map(userId => fetchMemberProfile(guildId, userId)));
+  fetched.forEach(profile => {
+    profiles.set(profile.userId, profile);
+  });
+
+  return profiles;
+}
+
+function decorateRowsWithProfiles(rows, profileMap, userField = 'user_id') {
+  return rows.map(row => {
+    const userId = row[userField] ? String(row[userField]) : null;
+    const profile = userId ? profileMap.get(userId) || fallbackProfile(userId) : null;
+    return {
+      ...row,
+      display_name: profile ? profile.displayName : null,
+      username: profile ? profile.username : null
+    };
+  });
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    guildId: resolveGuildId(req),
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.get('/api/overview', async (req, res, next) => {
   try {
@@ -78,20 +199,25 @@ app.get('/api/overview', async (req, res, next) => {
         SELECT user_id, level, total_xp, message_count, total_voice_seconds
         FROM users
         WHERE guild_id = $1
-        ORDER BY total_xp DESC
+        ORDER BY total_xp DESC, user_id ASC
         LIMIT 5
         `,
         [guildId]
       )
     ]);
 
+    const profileMap = await resolveMemberProfiles(guildId, [
+      ...featuredContent.rows.map(row => row.user_id),
+      ...topContributors.rows.map(row => row.user_id)
+    ]);
+
     res.json({
       guildId,
       activeUsers: activeUsers ? activeUsers.count : 0,
       upcomingEvents: upcomingEvents.rows,
-      featuredContent: featuredContent.rows,
+      featuredContent: decorateRowsWithProfiles(featuredContent.rows, profileMap),
       openTickets: openTickets ? openTickets.count : 0,
-      topContributors: topContributors.rows
+      topContributors: decorateRowsWithProfiles(topContributors.rows, profileMap)
     });
   } catch (error) {
     next(error);
@@ -105,6 +231,7 @@ app.get('/api/events', async (req, res, next) => {
       `
       SELECT e.*,
         COUNT(r.*) FILTER (WHERE r.status = 'going')::integer AS going_count,
+        COUNT(r.*) FILTER (WHERE r.status = 'maybe')::integer AS maybe_count,
         COUNT(a.*)::integer AS attendance_count
       FROM guild_events e
       LEFT JOIN event_rsvps r ON r.event_id = e.id
@@ -157,7 +284,15 @@ app.get('/api/content', async (req, res, next) => {
       )
     ]);
 
-    res.json({ gallery: gallery.rows, videos: videos.rows });
+    const profileMap = await resolveMemberProfiles(guildId, [
+      ...gallery.rows.map(row => row.user_id),
+      ...videos.rows.map(row => row.user_id)
+    ]);
+
+    res.json({
+      gallery: decorateRowsWithProfiles(gallery.rows, profileMap),
+      videos: decorateRowsWithProfiles(videos.rows, profileMap)
+    });
   } catch (error) {
     next(error);
   }
@@ -182,7 +317,8 @@ app.get('/api/tickets', async (req, res, next) => {
       [guildId]
     );
 
-    res.json({ tickets: result.rows });
+    const profileMap = await resolveMemberProfiles(guildId, result.rows.map(row => row.user_id));
+    res.json({ tickets: decorateRowsWithProfiles(result.rows, profileMap) });
   } catch (error) {
     next(error);
   }
@@ -246,3 +382,4 @@ app.use((error, req, res, next) => {
 app.listen(port, () => {
   logger.info(`PanzerVault dashboard running on http://localhost:${port}`);
 });
+
