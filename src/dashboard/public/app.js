@@ -4,7 +4,7 @@ const viewTitles = {
   content: ['Content', 'Gallery posts, videos, and contributor output'],
   tickets: ['Tickets', 'Categories, status, and response time'],
   analytics: ['Analytics', 'Activity trends and participation'],
-  settings: ['Configuration', 'Live bot settings and onboarding role mapping']
+  settings: ['Configuration', 'Setup readiness, live routing, and onboarding role mapping']
 };
 
 const SKILL_OPTIONS = [
@@ -140,6 +140,74 @@ function renderEmpty(title, detail = '') {
 function renderStatusMessage(message, tone = 'info') {
   if (!message) return '';
   return `<div class="status-inline ${escapeHtml(tone)}">${escapeHtml(message)}</div>`;
+}
+
+function readinessLabel(status) {
+  const labels = {
+    ok: 'Ready',
+    warn: 'Follow up',
+    error: 'Needs setup',
+    off: 'Disabled'
+  };
+
+  return labels[status] || titleCase(status || 'unknown');
+}
+
+function renderReadiness() {
+  const report = state.settings?.readiness;
+
+  if (!report) {
+    html('#readiness-overview', renderEmpty('Readiness data is not available yet.', 'Refresh the dashboard once the bot can reach Discord and the database.'));
+    return;
+  }
+
+  const summary = report.summary || {};
+  const cards = [
+    ['Ready', summary.okCount || 0],
+    ['Follow up', summary.warnCount || 0],
+    ['Needs setup', summary.errorCount || 0],
+    ['Disabled', summary.offCount || 0],
+    ['Sections', summary.totalSections || 0]
+  ];
+
+  html('#readiness-overview', `
+    <div class="readiness-panel-shell">
+      <div class="readiness-summary">
+        ${cards.map(([label, value]) => `
+          <article class="readiness-summary-card">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(formatCount(value))}</strong>
+          </article>
+        `).join('')}
+      </div>
+
+      <div class="readiness-grid">
+        ${(report.sections || []).map(section => `
+          <article class="readiness-card ${escapeHtml(section.status)}">
+            <div class="readiness-card-head">
+              <div>
+                <strong>${escapeHtml(section.title)}</strong>
+                <p class="readiness-card-summary">${escapeHtml(section.summary || '')}</p>
+              </div>
+              <span class="status-chip ${escapeHtml(section.status)}">${escapeHtml(readinessLabel(section.status))}</span>
+            </div>
+
+            <div class="readiness-items">
+              ${(section.items || []).map(item => `
+                <div class="readiness-item">
+                  <div class="readiness-item-head">
+                    <strong>${escapeHtml(item.label)}</strong>
+                    <span class="status-chip ${escapeHtml(item.status)}">${escapeHtml(readinessLabel(item.status))}</span>
+                  </div>
+                  <span>${escapeHtml(item.message)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+  `);
 }
 
 function row({ title, meta, detail = '', pill = '' }) {
@@ -551,6 +619,7 @@ function renderOnboardingSettings() {
 }
 
 function renderSettings() {
+  renderReadiness();
   renderCommunitySettings();
   renderOnboardingSettings();
 }
@@ -630,7 +699,7 @@ async function handleCommunitySettingsSubmit(event) {
 
   uiState.communityMessage = 'Saving community settings...';
   uiState.communityTone = 'info';
-  renderCommunitySettings();
+  renderSettings();
 
   try {
     button.disabled = true;
@@ -652,25 +721,23 @@ async function handleCommunitySettingsSubmit(event) {
       spotlightRoleId: form.elements.spotlightRoleId.value
     };
 
-    const result = await apiRequest('/api/settings/community', {
+    await apiRequest('/api/settings/community', {
       method: 'PUT',
       body: JSON.stringify(payload)
     });
 
-    state.settings = {
-      ...state.settings,
-      communitySettings: result.settings
-    };
+    const refreshedSettings = await fetchJson('/api/settings');
+    state.settings = refreshedSettings;
 
     uiState.communityMessage = 'Community settings saved.';
     uiState.communityTone = 'success';
     renderEvents();
-    renderCommunitySettings();
+    renderSettings();
   } catch (error) {
     console.error(error);
     uiState.communityMessage = error.message;
     uiState.communityTone = 'error';
-    renderCommunitySettings();
+    renderSettings();
   } finally {
     const refreshedButton = qs('#community-settings-form button[type="submit"]');
     if (refreshedButton) {
@@ -688,7 +755,7 @@ async function handleOnboardingSettingsSubmit(event) {
 
   uiState.onboardingMessage = 'Saving onboarding roles...';
   uiState.onboardingTone = 'info';
-  renderOnboardingSettings();
+  renderSettings();
 
   try {
     button.disabled = true;
@@ -702,7 +769,7 @@ async function handleOnboardingSettingsSubmit(event) {
       REGION_OPTIONS.map(([key]) => [key, form.elements[`region-${key}`].value])
     );
 
-    const result = await apiRequest('/api/settings/onboarding', {
+    await apiRequest('/api/settings/onboarding', {
       method: 'PUT',
       body: JSON.stringify({
         skillRoles,
@@ -711,21 +778,18 @@ async function handleOnboardingSettingsSubmit(event) {
       })
     });
 
-    state.settings = {
-      ...state.settings,
-      communitySettings: result.communitySettings,
-      onboarding: result.onboarding
-    };
+    const refreshedSettings = await fetchJson('/api/settings');
+    state.settings = refreshedSettings;
 
     uiState.onboardingMessage = 'Onboarding roles saved.';
     uiState.onboardingTone = 'success';
     renderEvents();
-    renderOnboardingSettings();
+    renderSettings();
   } catch (error) {
     console.error(error);
     uiState.onboardingMessage = error.message;
     uiState.onboardingTone = 'error';
-    renderOnboardingSettings();
+    renderSettings();
   } finally {
     const refreshedButton = qs('#onboarding-settings-form button[type="submit"]');
     if (refreshedButton) {

@@ -8,6 +8,7 @@ const onboardingRoleService = require('../../modules/config/services/onboardingR
 const serverPanelService = require('../../modules/config/services/serverPanelService');
 const ticketSettingsService = require('../../modules/tickets/services/ticketSettingsService');
 const communitySchedulerService = require('../../modules/community/services/communitySchedulerService');
+const readinessService = require('../../modules/system/services/readinessService');
 const logger = require('../../logger');
 
 async function handleReady(client) {
@@ -24,6 +25,7 @@ async function handleReady(client) {
   }
 
   await setupRolePanel(client);
+  await readinessService.runStartupChecks(client, logger);
   await voiceTrackingService.recoverOpenSessions(client);
   await voiceTrackingService.processActiveSessions(client);
   voiceTrackingService.start(client);

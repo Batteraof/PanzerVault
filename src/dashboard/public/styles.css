@@ -637,6 +637,125 @@ main {
   line-height: 1.55;
 }
 
+.readiness-panel-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.readiness-summary,
+.readiness-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.readiness-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.readiness-summary-card,
+.readiness-card,
+.readiness-item {
+  border: 1px solid rgba(200, 161, 90, 0.12);
+  border-radius: 8px;
+  background: rgba(245, 241, 232, 0.035);
+}
+
+.readiness-summary-card {
+  padding: 14px;
+}
+
+.readiness-summary-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+}
+
+.readiness-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.readiness-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.readiness-card.warn {
+  border-color: rgba(208, 161, 92, 0.24);
+}
+
+.readiness-card.error {
+  border-color: rgba(226, 134, 125, 0.3);
+}
+
+.readiness-card.off {
+  border-color: rgba(168, 161, 144, 0.22);
+}
+
+.readiness-card-head,
+.readiness-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.readiness-card-summary {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.readiness-items {
+  display: grid;
+  gap: 10px;
+}
+
+.readiness-item {
+  padding: 12px;
+}
+
+.readiness-item span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(200, 161, 90, 0.22);
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-chip.ok {
+  color: #cfe5c6;
+  border-color: rgba(143, 191, 125, 0.28);
+  background: rgba(143, 191, 125, 0.08);
+}
+
+.status-chip.warn {
+  color: #f0d29a;
+  border-color: rgba(208, 161, 92, 0.28);
+  background: rgba(208, 161, 92, 0.08);
+}
+
+.status-chip.error {
+  color: #f1b3ad;
+  border-color: rgba(226, 134, 125, 0.3);
+  background: rgba(226, 134, 125, 0.08);
+}
+
+.status-chip.off {
+  color: #d7d0c1;
+  border-color: rgba(168, 161, 144, 0.24);
+  background: rgba(168, 161, 144, 0.08);
+}
 @media (max-width: 1260px) {
   .content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -644,6 +763,14 @@ main {
 
   .ticket-board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .readiness-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .readiness-grid {
+    grid-template-columns: 1fr;
   }
 
   .regions-grid {
@@ -689,6 +816,8 @@ main {
 
   nav,
   .stat-grid,
+  .readiness-summary,
+  .readiness-grid,
   .split-layout,
   .settings-layout,
   .form-grid,

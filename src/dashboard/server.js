@@ -4,9 +4,14 @@ const path = require('node:path');
 const express = require('express');
 const db = require('../db/client');
 const eventRepository = require('../db/repositories/eventRepository');
+const guildSettingsRepository = require('../db/repositories/guildSettingsRepository');
 const logger = require('../logger');
+const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
+const gallerySettingsService = require('../modules/gallery/services/gallerySettingsService');
+const ticketSettingsService = require('../modules/tickets/services/ticketSettingsService');
+const readinessService = require('../modules/system/services/readinessService');
 const eventService = require('../modules/community/services/eventService');
 const { parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
 
@@ -591,26 +596,57 @@ app.get('/api/analytics', async (req, res, next) => {
 app.get('/api/settings', async (req, res, next) => {
   try {
     const guildId = resolveGuildId(req);
-    const [communitySettings, skillRoles, regionRoles, metadata] = await Promise.all([
+    const [
+      botSettings,
+      communitySettings,
+      gallerySettings,
+      ticketSettings,
+      levelingSettings,
+      skillRoles,
+      regionRoles,
+      metadata
+    ] = await Promise.all([
+      botSettingsService.ensureGuildSettings(guildId),
       communitySettingsService.ensureGuildSettings(guildId),
+      gallerySettingsService.ensureGuildSettings(guildId),
+      ticketSettingsService.ensureGuildSettings(guildId),
+      guildSettingsRepository.ensureSettings(guildId),
       onboardingRoleService.listRolesByGroup(guildId, 'skill'),
       onboardingRoleService.listRolesByGroup(guildId, 'region'),
       fetchGuildMetadata(guildId)
     ]);
 
-    res.json({
+    const onboarding = {
+      skillRoles: roleMapFromRows(skillRoles),
+      regionRoles: roleMapFromRows(regionRoles)
+    };
+
+    const readiness = readinessService.buildReadinessReport({
+      guildId,
+      botSettings,
       communitySettings,
-      onboarding: {
-        skillRoles: roleMapFromRows(skillRoles),
-        regionRoles: roleMapFromRows(regionRoles)
-      },
+      gallerySettings,
+      ticketSettings,
+      levelingSettings,
+      skillRoles: onboarding.skillRoles,
+      regionRoles: onboarding.regionRoles,
       metadata
+    });
+
+    res.json({
+      botSettings,
+      communitySettings,
+      gallerySettings,
+      ticketSettings,
+      levelingSettings,
+      onboarding,
+      metadata,
+      readiness
     });
   } catch (error) {
     next(error);
   }
 });
-
 app.put('/api/settings/community', async (req, res, next) => {
   try {
     const guildId = resolveGuildId(req);
