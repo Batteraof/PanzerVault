@@ -321,3 +321,40 @@ sudo systemctl restart discord-bot
 ```
 
 Refresh Discord with `Ctrl + R` after command changes so stale command entries disappear.
+
+## Dashboard Hosting
+
+The admin dashboard is a separate lightweight Express process.
+
+Manual start:
+
+```bash
+npm run dashboard
+```
+
+Health check:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Recommended `systemd` service example:
+
+- `docs/general-bot-dashboard.service.example`
+
+Typical Ubuntu install flow:
+
+```bash
+sudo cp docs/general-bot-dashboard.service.example /etc/systemd/system/general-bot-dashboard.service
+sudo systemctl daemon-reload
+sudo systemctl enable general-bot-dashboard
+sudo systemctl start general-bot-dashboard
+sudo systemctl status general-bot-dashboard --no-pager
+```
+
+Useful dashboard commands:
+
+```bash
+sudo systemctl restart general-bot-dashboard
+sudo journalctl -u general-bot-dashboard -f
+```

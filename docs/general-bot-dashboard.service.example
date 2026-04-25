@@ -1,0 +1,16 @@
+[Unit]
+Description=General Bot Dashboard
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/batteraof/discord-bot
+EnvironmentFile=/home/batteraof/discord-bot/.env
+ExecStart=/usr/bin/node /home/batteraof/discord-bot/src/dashboard/server.js
+Restart=always
+RestartSec=10
+User=batteraof
+
+[Install]
+WantedBy=multi-user.target
