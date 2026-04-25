@@ -283,6 +283,19 @@ async function listAttendance(eventId, client) {
   return result.rows;
 }
 
+async function deleteEvent(guildId, eventId, client) {
+  const result = await executor(client).query(
+    `
+    DELETE FROM guild_events
+    WHERE guild_id = $1 AND id = $2
+    RETURNING *
+    `,
+    [guildId, eventId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function countCreatedBetween(guildId, start, end, client) {
   const result = await executor(client).query(
     `
@@ -301,6 +314,7 @@ async function countCreatedBetween(guildId, start, end, client) {
 module.exports = {
   createEvent,
   updateEvent,
+  deleteEvent,
   findById,
   listDueForThreeDayReminder,
   listDueForOneDayReminder,
@@ -314,3 +328,4 @@ module.exports = {
   listAttendance,
   countCreatedBetween
 };
+

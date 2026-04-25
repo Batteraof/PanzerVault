@@ -388,5 +388,9 @@ module.exports = {
   handleAttendance,
   processDueReminders,
   parseRsvpCustomId,
-  parseAttendCustomId
+  parseAttendCustomId,
+  buildEventEmbed,
+  buildEventComponents,
+  validateLink
 };
+

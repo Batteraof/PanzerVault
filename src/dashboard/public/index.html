@@ -3,38 +3,44 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PanzerVault Dashboard</title>
+    <title>General Bot Command Center</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <img src="/assets/panzervault-logo.svg" alt="PanzerVault logo">
+          <img src="/assets/general-bot-logo.png" alt="General Bot logo">
           <div>
-            <strong>PanzerVault</strong>
-            <span>Command Center</span>
+            <strong>General Bot</strong>
+            <span>PanzerVault Command Center</span>
           </div>
         </div>
+
         <nav>
           <button class="nav-item active" data-view="overview">Overview</button>
           <button class="nav-item" data-view="events">Events</button>
           <button class="nav-item" data-view="content">Content</button>
           <button class="nav-item" data-view="tickets">Tickets</button>
           <button class="nav-item" data-view="analytics">Analytics</button>
-          <button class="nav-item" data-view="roles">Roles</button>
+          <button class="nav-item" data-view="settings">Configuration</button>
         </nav>
+
+        <div class="sidebar-note">
+          <strong>Live admin surface</strong>
+          <span>These controls write to the same live data and settings the Discord bot already uses, so staff can work here without losing the in-server flow.</span>
+        </div>
       </aside>
 
       <main>
         <section class="hero">
-          <img class="hero-bg" src="/assets/panzervault-banner.svg" alt="">
+          <img class="hero-bg" src="/assets/general-bot-banner.png" alt="">
           <div class="hero-content">
-            <img src="/assets/server-logo.svg" alt="Server logo">
+            <img src="/assets/general-bot-logo.png" alt="General Bot logo">
             <div>
-              <p>Live operations dashboard</p>
-              <h1>PanzerVault Bot</h1>
-              <span>Monitor events, creator content, support load, and engagement without leaving the field.</span>
+              <p>Live Operations Dashboard</p>
+              <h1>General Bot</h1>
+              <span>Run events, steer onboarding, and keep PanzerVault's community operations tidy from one lightweight command surface.</span>
             </div>
           </div>
         </section>
@@ -46,7 +52,7 @@
           </div>
           <div class="toolbar-actions">
             <span id="last-updated" class="toolbar-status" aria-live="polite">Waiting for first refresh...</span>
-            <button id="refresh-button" type="button">Refresh</button>
+            <button id="refresh-button" class="button-secondary" type="button">Refresh</button>
           </div>
         </section>
 
@@ -75,24 +81,40 @@
           </div>
           <div class="two-column">
             <article class="panel">
-              <header><h2>Upcoming Events</h2></header>
+              <header>
+                <h2>Upcoming Events</h2>
+                <span>What the community can rally around next</span>
+              </header>
               <div id="overview-events" class="list"></div>
             </article>
             <article class="panel">
-              <header><h2>Top Contributors</h2></header>
+              <header>
+                <h2>Top Contributors</h2>
+                <span>XP leaders across text and voice</span>
+              </header>
               <div id="top-contributors" class="list"></div>
             </article>
           </div>
         </section>
 
         <section id="events" class="view">
-          <article class="panel">
-            <header>
-              <h2>Event Operations</h2>
-              <span>RSVPs, attendance, and XP configuration</span>
-            </header>
-            <div id="events-list" class="table-list"></div>
-          </article>
+          <div class="split-layout">
+            <article class="panel">
+              <header>
+                <h2>Create Event</h2>
+                <span>Schedule a new RSVP post directly from the dashboard</span>
+              </header>
+              <div id="event-composer"></div>
+            </article>
+
+            <article class="panel">
+              <header>
+                <h2>Event Operations</h2>
+                <span>RSVPs, attendance, and posted sessions</span>
+              </header>
+              <div id="events-list" class="table-list"></div>
+            </article>
+          </div>
         </section>
 
         <section id="content" class="view">
@@ -109,7 +131,7 @@
           <article class="panel">
             <header>
               <h2>Tickets</h2>
-              <span>Categories, status, and response time</span>
+              <span>Categories, status, and response pace</span>
             </header>
             <div id="ticket-board" class="ticket-board"></div>
           </article>
@@ -125,17 +147,24 @@
           </article>
         </section>
 
-        <section id="roles" class="view">
-          <article class="panel">
-            <header>
-              <h2>Roles / Onboarding</h2>
-              <span>Visual configuration surface for the next dashboard phase</span>
-            </header>
-            <div class="empty-state">
-              <strong>Role editing comes next.</strong>
-              <span>This space is reserved for a safe visual layer on top of the existing onboarding config, so the live Discord flow can stay stable while we improve the controls.</span>
-            </div>
-          </article>
+        <section id="settings" class="view">
+          <div class="settings-layout">
+            <article class="panel">
+              <header>
+                <h2>Community Settings</h2>
+                <span>Feature toggles and routing that mirror the live bot config</span>
+              </header>
+              <div id="community-settings"></div>
+            </article>
+
+            <article class="panel">
+              <header>
+                <h2>Onboarding Roles</h2>
+                <span>Skill, region, and coach role mapping for the join flow</span>
+              </header>
+              <div id="onboarding-settings"></div>
+            </article>
+          </div>
         </section>
       </main>
     </div>

@@ -3,14 +3,21 @@ require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
 const db = require('../db/client');
+const eventRepository = require('../db/repositories/eventRepository');
 const logger = require('../logger');
+const communitySettingsService = require('../modules/config/services/communitySettingsService');
+const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
+const eventService = require('../modules/community/services/eventService');
+const { parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
 
 const app = express();
 const port = Number(process.env.DASHBOARD_PORT || 3000);
 const publicDir = path.join(__dirname, 'public');
 const discordApiBase = 'https://discord.com/api/v10';
 const memberCache = new Map();
+const guildMetadataCache = new Map();
 const MEMBER_CACHE_TTL_MS = 10 * 60 * 1000;
+const GUILD_METADATA_TTL_MS = 5 * 60 * 1000;
 const MAX_MEMBER_LOOKUPS_PER_REQUEST = 24;
 
 app.disable('x-powered-by');
@@ -21,6 +28,18 @@ app.use(express.static(publicDir, {
 
 function resolveGuildId(req) {
   return req.query.guildId || process.env.GUILD_ID;
+}
+
+function badRequest(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function gatewayError(message) {
+  const error = new Error(message);
+  error.statusCode = 502;
+  return error;
 }
 
 async function queryOne(sql, params) {
@@ -69,27 +88,45 @@ function cacheProfile(guildId, profile) {
   return profile;
 }
 
-async function fetchMemberProfile(guildId, userId) {
+async function discordRequest(route, options = {}) {
   if (!process.env.TOKEN) {
-    return fallbackProfile(userId);
+    throw gatewayError('Dashboard cannot reach Discord because TOKEN is missing.');
   }
 
+  const method = options.method || 'GET';
+  const response = await fetch(`${discordApiBase}${route}`, {
+    method,
+    headers: {
+      Authorization: `Bot ${process.env.TOKEN}`,
+      'User-Agent': 'GeneralBotDashboard/1.0',
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {})
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined
+  });
+
+  if (response.status === 404 && options.allowNotFound) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw gatewayError(`Discord API ${method} ${route} failed (${response.status}). ${text.slice(0, 180)}`.trim());
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+async function fetchMemberProfile(guildId, userId) {
   try {
-    const response = await fetch(`${discordApiBase}/guilds/${guildId}/members/${userId}`, {
-      headers: {
-        Authorization: `Bot ${process.env.TOKEN}`,
-        'User-Agent': 'PanzerVaultDashboard/1.0'
-      }
+    const payload = await discordRequest(`/guilds/${guildId}/members/${userId}`, {
+      allowNotFound: true
     });
 
-    if (!response.ok) {
-      if (response.status !== 404) {
-        logger.warn(`Dashboard member lookup failed for ${userId} with status ${response.status}`);
-      }
+    if (!payload) {
       return cacheProfile(guildId, fallbackProfile(userId));
     }
 
-    const payload = await response.json();
     return cacheProfile(guildId, normalizeProfile(userId, payload));
   } catch (error) {
     logger.warn(`Dashboard member lookup failed for ${userId}`, error);
@@ -135,6 +172,116 @@ function decorateRowsWithProfiles(rows, profileMap, userField = 'user_id') {
       username: profile ? profile.username : null
     };
   });
+}
+
+async function fetchGuildMetadata(guildId) {
+  const cached = guildMetadataCache.get(guildId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
+  const [channelsRaw, rolesRaw] = await Promise.all([
+    discordRequest(`/guilds/${guildId}/channels`),
+    discordRequest(`/guilds/${guildId}/roles`)
+  ]);
+
+  const categoryMap = new Map(
+    channelsRaw
+      .filter(channel => channel.type === 4)
+      .map(channel => [channel.id, channel])
+  );
+
+  const channels = channelsRaw
+    .filter(channel => channel.type === 0 || channel.type === 5)
+    .map(channel => {
+      const parent = channel.parent_id ? categoryMap.get(channel.parent_id) : null;
+      return {
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
+        position: channel.position || 0,
+        categoryPosition: parent ? parent.position || 0 : -1,
+        categoryName: parent ? parent.name : null,
+        label: parent ? `${parent.name} / #${channel.name}` : `#${channel.name}`
+      };
+    })
+    .sort((left, right) =>
+      left.categoryPosition - right.categoryPosition ||
+      left.position - right.position ||
+      left.label.localeCompare(right.label)
+    );
+
+  const roles = rolesRaw
+    .filter(role => role.id !== guildId && !role.managed)
+    .sort((left, right) => right.position - left.position || left.name.localeCompare(right.name))
+    .map(role => ({
+      id: role.id,
+      name: role.name,
+      label: `@${role.name}`,
+      position: role.position
+    }));
+
+  const value = { channels, roles };
+  guildMetadataCache.set(guildId, {
+    expiresAt: Date.now() + GUILD_METADATA_TTL_MS,
+    value
+  });
+  return value;
+}
+
+function roleMapFromRows(rows) {
+  return Object.fromEntries((rows || []).map(row => [row.option_key, row.role_id]));
+}
+
+function asNullableId(value) {
+  const normalized = String(value || '').trim();
+  return normalized || null;
+}
+
+function parseEventDateInput(value) {
+  const normalized = String(value || '').trim().replace('T', ' ');
+  return parseLocalDateTimeString(normalized);
+}
+
+function toOptionalBoolean(value) {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function buildCommunityUpdates(body = {}) {
+  const updates = {};
+  const flagKeys = {
+    onboardingEnabled: 'onboarding_enabled',
+    videoEnabled: 'video_enabled',
+    spotlightEnabled: 'spotlight_enabled',
+    eventEnabled: 'event_enabled',
+    anniversaryEnabled: 'anniversary_enabled',
+    weeklyRecapEnabled: 'weekly_recap_enabled',
+    softModerationEnabled: 'soft_moderation_enabled'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(flagKeys)) {
+    const value = toOptionalBoolean(body[inputKey]);
+    if (value !== undefined) {
+      updates[dbKey] = value;
+    }
+  }
+
+  const idKeys = {
+    communityChannelId: 'community_channel_id',
+    videoChannelId: 'video_channel_id',
+    spotlightChannelId: 'spotlight_channel_id',
+    spotlightRoleId: 'spotlight_role_id',
+    eventChannelId: 'event_channel_id',
+    moderationLogChannelId: 'moderation_log_channel_id'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(idKeys)) {
+    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
+      updates[dbKey] = asNullableId(body[inputKey]);
+    }
+  }
+
+  return updates;
 }
 
 app.get('/api/health', (req, res) => {
@@ -245,6 +392,77 @@ app.get('/api/events', async (req, res, next) => {
     );
 
     res.json({ events: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/events', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const settings = await communitySettingsService.ensureGuildSettings(guildId);
+    if (!settings.event_enabled) {
+      throw badRequest('Events are currently disabled in community settings.');
+    }
+
+    if (!settings.event_channel_id) {
+      throw badRequest('Set the event channel in dashboard settings before creating an event.');
+    }
+
+    const title = String(req.body.title || '').trim();
+    if (title.length < 3) {
+      throw badRequest('Event title must be at least 3 characters long.');
+    }
+
+    const startsAt = parseEventDateInput(req.body.startsAt);
+    if (!startsAt) {
+      throw badRequest('Use a valid local date and time for the event start.');
+    }
+
+    if (startsAt.getTime() <= Date.now()) {
+      throw badRequest('Event time must be in the future.');
+    }
+
+    const externalUrl = eventService.validateLink(req.body.externalUrl || null);
+    const description = String(req.body.description || '').trim() || null;
+
+    const created = await eventRepository.createEvent({
+      guildId,
+      channelId: settings.event_channel_id,
+      title,
+      description,
+      externalUrl,
+      startsAt,
+      createdBy: 'dashboard'
+    });
+
+    try {
+      const counts = {
+        going_count: 0,
+        maybe_count: 0,
+        not_going_count: 0
+      };
+
+      const payload = {
+        embeds: [eventService.buildEventEmbed(created, counts).toJSON()],
+        components: eventService.buildEventComponents(created).map(row => row.toJSON()),
+        allowed_mentions: { parse: [] }
+      };
+
+      const message = await discordRequest(`/channels/${created.channel_id}/messages`, {
+        method: 'POST',
+        body: payload
+      });
+
+      const updated = await eventRepository.updateEvent(guildId, created.id, {
+        message_id: message.id
+      });
+
+      res.status(201).json({ event: updated, messageId: message.id });
+    } catch (error) {
+      await eventRepository.deleteEvent(guildId, created.id).catch(() => null);
+      throw error;
+    }
   } catch (error) {
     next(error);
   }
@@ -370,16 +588,100 @@ app.get('/api/analytics', async (req, res, next) => {
   }
 });
 
+app.get('/api/settings', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const [communitySettings, skillRoles, regionRoles, metadata] = await Promise.all([
+      communitySettingsService.ensureGuildSettings(guildId),
+      onboardingRoleService.listRolesByGroup(guildId, 'skill'),
+      onboardingRoleService.listRolesByGroup(guildId, 'region'),
+      fetchGuildMetadata(guildId)
+    ]);
+
+    res.json({
+      communitySettings,
+      onboarding: {
+        skillRoles: roleMapFromRows(skillRoles),
+        regionRoles: roleMapFromRows(regionRoles)
+      },
+      metadata
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/settings/community', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await communitySettingsService.ensureGuildSettings(guildId);
+    const updates = buildCommunityUpdates(req.body);
+    const settings = await communitySettingsService.updateSettings(guildId, updates);
+    res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/settings/onboarding', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const skillRoles = req.body.skillRoles || {};
+    const regionRoles = req.body.regionRoles || {};
+
+    for (const option of onboardingRoleService.SKILL_OPTIONS) {
+      const roleId = asNullableId(skillRoles[option.key]);
+      if (!roleId) {
+        throw badRequest(`Choose a role for skill level ${option.label}.`);
+      }
+      await onboardingRoleService.setSkillRole(guildId, option.key, roleId);
+    }
+
+    for (const option of onboardingRoleService.REGION_OPTIONS) {
+      if (!Object.prototype.hasOwnProperty.call(regionRoles, option.key)) continue;
+      const roleId = asNullableId(regionRoles[option.key]);
+      if (roleId) {
+        await onboardingRoleService.setRegionRole(guildId, option.key, roleId);
+      } else {
+        await onboardingRoleService.disableRegionRole(guildId, option.key);
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'coachRoleId')) {
+      await communitySettingsService.updateSettings(guildId, {
+        coach_role_id: asNullableId(req.body.coachRoleId)
+      });
+    }
+
+    const [communitySettings, refreshedSkillRoles, refreshedRegionRoles] = await Promise.all([
+      communitySettingsService.ensureGuildSettings(guildId),
+      onboardingRoleService.listRolesByGroup(guildId, 'skill'),
+      onboardingRoleService.listRolesByGroup(guildId, 'region')
+    ]);
+
+    res.json({
+      communitySettings,
+      onboarding: {
+        skillRoles: roleMapFromRows(refreshedSkillRoles),
+        regionRoles: roleMapFromRows(refreshedRegionRoles)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
 app.use((error, req, res, next) => {
   logger.error('Dashboard request failed', error);
-  res.status(500).json({ error: 'Dashboard request failed.' });
+  res.status(error.statusCode || 500).json({
+    error: error.message || 'Dashboard request failed.'
+  });
 });
 
 app.listen(port, () => {
-  logger.info(`PanzerVault dashboard running on http://localhost:${port}`);
+  logger.info(`General Bot dashboard running on http://localhost:${port}`);
 });
-
