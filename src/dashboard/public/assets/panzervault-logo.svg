@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PanzerVault">
+  <defs>
+    <linearGradient id="steel" x1="80" y1="40" x2="432" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d84f4f"/>
+      <stop offset="0.52" stop-color="#9fb6ff"/>
+      <stop offset="1" stop-color="#2d3748"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="#0d1117"/>
+  <path d="M96 196h320l42 64-42 64H96l-42-64 42-64Z" fill="url(#steel)" opacity="0.95"/>
+  <path d="M138 238h236v44H138z" fill="#111827"/>
+  <path d="M174 156h164l34 40H140l34-40Z" fill="#edf2ff" opacity="0.9"/>
+  <path d="M108 354h296v34H108z" fill="#edf2ff" opacity="0.16"/>
+  <circle cx="166" cy="354" r="30" fill="#171e28" stroke="#9fb6ff" stroke-width="10"/>
+  <circle cx="256" cy="354" r="30" fill="#171e28" stroke="#9fb6ff" stroke-width="10"/>
+  <circle cx="346" cy="354" r="30" fill="#171e28" stroke="#9fb6ff" stroke-width="10"/>
+  <path d="M332 246h116v28H332z" fill="#d84f4f"/>
+  <text x="256" y="121" fill="#edf2ff" font-family="Arial, sans-serif" font-size="46" font-weight="800" text-anchor="middle">PV</text>
+</svg>

@@ -1,4 +1,4 @@
-const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags, SlashCommandBuilder } = require('discord.js');
 const config = require('../config');
 const packageJson = require('../../package.json');
 const { supportLine } = require('../modules/config/services/serverPanelService');
@@ -20,6 +20,8 @@ module.exports = {
     .setDescription('Show what this bot does and how to get help.'),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(`${interaction.client.user.username}`)
@@ -50,6 +52,6 @@ module.exports = {
       .setFooter({ text: `Version ${packageJson.version}` })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.editReply({ embeds: [embed] });
   }
 };

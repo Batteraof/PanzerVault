@@ -7,6 +7,7 @@ module.exports = {
   REGION_SELECT: 'region_select',
   COACH_TOGGLE: 'coach_toggle',
   EVENT_RSVP_PREFIX: 'event_rsvp',
+  EVENT_ATTEND_PREFIX: 'event_attend',
   SPOTLIGHT_VOTE_PREFIX: 'spotlight_vote',
   GALLERY_WIZARD_PREFIX: 'gallery_wizard',
   GALLERY_WIZARD_CATEGORY: 'gallery_wizard:category',

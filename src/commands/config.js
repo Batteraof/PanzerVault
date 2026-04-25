@@ -1,11 +1,11 @@
 const {
   ChannelType,
+  MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder
 } = require('discord.js');
 const configCommandService = require('../modules/admin/services/configCommandService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
-const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 const textChannelTypes = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
@@ -499,12 +499,12 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Config commands can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
-    await beginEphemeralReply(interaction, 'Updating config...');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const message = await configCommandService.execute(interaction);

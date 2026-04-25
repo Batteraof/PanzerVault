@@ -1,3 +1,4 @@
+const { MessageFlags } = require('discord.js');
 const botCommand = require('../../commands/bot');
 const rankCommand = require('../../commands/rank');
 const rankResetCommand = require('../../commands/rankReset');
@@ -17,6 +18,7 @@ const { handleRoleInteraction } = require('./roleInteractions');
 const galleryWizardService = require('../../modules/gallery/services/galleryWizardService');
 const eventService = require('../../modules/community/services/eventService');
 const spotlightService = require('../../modules/community/services/spotlightService');
+const interactionFlowRouter = require('../../modules/interactions/interactionFlowRouter');
 const logger = require('../../logger');
 
 const slashCommands = new Map([
@@ -45,7 +47,7 @@ async function replyInteractionError(interaction) {
     return;
   }
 
-  await interaction.reply({ content, ephemeral: true }).catch(() => null);
+  await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
 }
 
 async function handleInteractionCreate(interaction) {
@@ -57,9 +59,15 @@ async function handleInteractionCreate(interaction) {
       const eventHandled = await eventService.handleRsvp(interaction);
       if (eventHandled) return;
 
+      const attendanceHandled = await eventService.handleAttendance(interaction);
+      if (attendanceHandled) return;
+
       const spotlightHandled = await spotlightService.handleVote(interaction);
       if (spotlightHandled) return;
     }
+
+    const flowHandled = await interactionFlowRouter.handleInteraction(interaction);
+    if (flowHandled) return;
 
     if (interaction.customId && galleryWizardService.isWizardInteraction(interaction)) {
       const handled = await galleryWizardService.handleInteraction(interaction);
@@ -83,7 +91,7 @@ async function handleInteractionCreate(interaction) {
     if (!command) {
       await interaction.reply({
         content: 'That command is no longer active. Refresh Discord or wait a moment and try again.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       }).catch(() => null);
       return;
     }

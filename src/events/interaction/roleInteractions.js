@@ -1,4 +1,4 @@
-const { ActionRowBuilder, PermissionsBitField } = require('discord.js');
+const { ActionRowBuilder, MessageFlags, PermissionsBitField } = require('discord.js');
 const config = require('../../config');
 const customIds = require('../../lib/customIds');
 const {
@@ -15,6 +15,34 @@ function isCoachEligible(skillOptionKey) {
   return ['medium', 'expert'].includes(skillOptionKey);
 }
 
+async function respondEphemeral(interaction, payload) {
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply(payload);
+  }
+
+  return interaction.reply({
+    ...payload,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+function isRoleButton(customId) {
+  return [
+    customIds.JOIN_INFO,
+    customIds.ROLES_MENU,
+    customIds.AGREE_RULES,
+    customIds.COACH_TOGGLE
+  ].includes(customId);
+}
+
+function isRoleSelect(customId) {
+  return [
+    customIds.SKILL_SELECT,
+    customIds.REGION_SELECT,
+    customIds.ROLE_SELECT
+  ].includes(customId);
+}
+
 async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
   const member = interaction.member;
   const botMember = interaction.guild.members.me;
@@ -22,17 +50,15 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
   const selected = roles.find(role => role.option_key === selectedValue);
 
   if (!selected) {
-    await interaction.reply({
-      content: 'That role option is no longer available.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'That role option is no longer available.'
     });
     return true;
   }
 
   if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-    await interaction.reply({
-      content: 'I do not have permission to manage roles.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'I do not have permission to manage roles.'
     });
     return true;
   }
@@ -51,17 +77,15 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
 
   const selectedRole = interaction.guild.roles.cache.get(selected.role_id);
   if (!selectedRole) {
-    await interaction.reply({
-      content: 'The selected role no longer exists.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'The selected role no longer exists.'
     });
     return true;
   }
 
   if (botMember.roles.highest.comparePositionTo(selectedRole) <= 0) {
-    await interaction.reply({
-      content: 'My role is too low to assign that role.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'My role is too low to assign that role.'
     });
     return true;
   }
@@ -79,9 +103,8 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
     followUp += `\nYou can also tap **Toggle Coach Role** if you want beginners to know you are available to help.`;
   }
 
-  await interaction.reply({
-    content: followUp,
-    ephemeral: true
+  await respondEphemeral(interaction, {
+    content: followUp
   });
 
   return true;
@@ -91,9 +114,8 @@ async function handleCoachToggle(interaction) {
   const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
   const coachRoleId = communitySettings.coach_role_id;
   if (!coachRoleId) {
-    await interaction.reply({
-      content: 'Coach mode is not configured yet.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'Coach mode is not configured yet.'
     });
     return true;
   }
@@ -102,9 +124,8 @@ async function handleCoachToggle(interaction) {
   const selectedSkill = skillRoles.find(role => interaction.member.roles.cache.has(role.role_id));
 
   if (!selectedSkill || !isCoachEligible(selectedSkill.option_key)) {
-    await interaction.reply({
-      content: 'Only members with the Medium or Expert role can opt into the coach role.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'Only members with the Medium or Expert role can opt into the coach role.'
     });
     return true;
   }
@@ -112,42 +133,37 @@ async function handleCoachToggle(interaction) {
   const coachRole = interaction.guild.roles.cache.get(coachRoleId);
   const botMember = interaction.guild.members.me;
   if (!coachRole) {
-    await interaction.reply({
-      content: 'The coach role no longer exists.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'The coach role no longer exists.'
     });
     return true;
   }
 
   if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-    await interaction.reply({
-      content: 'I do not have permission to manage roles.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'I do not have permission to manage roles.'
     });
     return true;
   }
 
   if (botMember.roles.highest.comparePositionTo(coachRole) <= 0) {
-    await interaction.reply({
-      content: 'My role is too low to manage the coach role.',
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: 'My role is too low to manage the coach role.'
     });
     return true;
   }
 
   if (interaction.member.roles.cache.has(coachRole.id)) {
     await interaction.member.roles.remove(coachRole);
-    await interaction.reply({
-      content: `Coach mode disabled. You no longer have ${coachRole}.`,
-      ephemeral: true
+    await respondEphemeral(interaction, {
+      content: `Coach mode disabled. You no longer have ${coachRole}.`
     });
     return true;
   }
 
   await interaction.member.roles.add(coachRole);
-  await interaction.reply({
-    content: `Coach mode enabled. You now have ${coachRole} so beginners know they can ask you for help.`,
-    ephemeral: true
+  await respondEphemeral(interaction, {
+    content: `Coach mode enabled. You now have ${coachRole} so beginners know they can ask you for help.`
   });
   return true;
 }
@@ -162,10 +178,9 @@ async function handleRoleButton(interaction) {
       ? `\n\nBefore anything else, please read and accept the rules in <#${settings.rules_channel_id}> to unlock the rest of the server.`
       : '';
 
-    return interaction.reply({
+    return respondEphemeral(interaction, {
       content:
-        `Welcome. Check the rules, get settled in, and if you are ready to play head to <#${config.channels.gameChannelId}> and use <@&${config.channels.readyRoleId}>.${rulesLine}`,
-      ephemeral: true
+        `Welcome. Check the rules, get settled in, and if you are ready to play head to <#${config.channels.gameChannelId}> and use <@&${config.channels.readyRoleId}>.${rulesLine}`
     });
   }
 
@@ -173,10 +188,9 @@ async function handleRoleButton(interaction) {
     const data = await buildRolePanelData(interaction.guild.id);
     const components = await buildRolePanelComponents(interaction.guild.id);
 
-    return interaction.reply({
+    return respondEphemeral(interaction, {
       content: `**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`,
-      components,
-      ephemeral: true
+      components
     });
   }
 
@@ -186,31 +200,27 @@ async function handleRoleButton(interaction) {
     const botMember = interaction.guild.members.me;
 
     if (!settings.rules_enabled || !settings.rules_verified_role_id) {
-      return interaction.reply({
-        content: 'Rules verification is not configured yet. Please contact staff.',
-        ephemeral: true
+      return respondEphemeral(interaction, {
+        content: 'Rules verification is not configured yet. Please contact staff.'
       });
     }
 
     if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-      return interaction.reply({
-        content: 'I do not have permission to grant the verified role.',
-        ephemeral: true
+      return respondEphemeral(interaction, {
+        content: 'I do not have permission to grant the verified role.'
       });
     }
 
     const verifiedRole = interaction.guild.roles.cache.get(settings.rules_verified_role_id);
     if (!verifiedRole) {
-      return interaction.reply({
-        content: 'The verified role is missing. Please contact staff.',
-        ephemeral: true
+      return respondEphemeral(interaction, {
+        content: 'The verified role is missing. Please contact staff.'
       });
     }
 
     if (botMember.roles.highest.comparePositionTo(verifiedRole) <= 0) {
-      return interaction.reply({
-        content: 'My role is too low to grant the verified role.',
-        ephemeral: true
+      return respondEphemeral(interaction, {
+        content: 'My role is too low to grant the verified role.'
       });
     }
 
@@ -220,10 +230,9 @@ async function handleRoleButton(interaction) {
 
     const data = await buildRolePanelData(interaction.guild.id);
     const components = await buildRolePanelComponents(interaction.guild.id);
-    return interaction.reply({
+    return respondEphemeral(interaction, {
       content: `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`,
-      components,
-      ephemeral: true
+      components
     });
   }
 
@@ -252,11 +261,15 @@ async function handleRoleSelect(interaction) {
 
 async function handleRoleInteraction(interaction) {
   if (interaction.isButton()) {
+    if (!isRoleButton(interaction.customId)) return false;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const handled = await handleRoleButton(interaction);
     return Boolean(handled);
   }
 
   if (interaction.isStringSelectMenu()) {
+    if (!isRoleSelect(interaction.customId)) return false;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     return handleRoleSelect(interaction);
   }
 

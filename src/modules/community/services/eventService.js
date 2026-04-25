@@ -2,12 +2,15 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
+  EmbedBuilder,
+  MessageFlags
 } = require('discord.js');
 const eventRepository = require('../../../db/repositories/eventRepository');
 const communitySettingsService = require('../../config/services/communitySettingsService');
+const eventXpService = require('../../engagement/services/eventXpService');
 const customIds = require('../../../lib/customIds');
 const { parseLocalDateTimeString } = require('../utils/dateUtils');
+const logger = require('../../../logger');
 
 const RSVP_STATES = {
   GOING: 'going',
@@ -29,6 +32,19 @@ function parseRsvpCustomId(customId) {
   };
 }
 
+function buildAttendCustomId(eventId) {
+  return `${customIds.EVENT_ATTEND_PREFIX}:${eventId}`;
+}
+
+function parseAttendCustomId(customId) {
+  const parts = String(customId || '').split(':');
+  if (parts[0] !== customIds.EVENT_ATTEND_PREFIX) return null;
+
+  return {
+    eventId: Number(parts[1])
+  };
+}
+
 function buildEventEmbed(event, counts) {
   const timestamp = Math.floor(new Date(event.starts_at).getTime() / 1000);
 
@@ -45,6 +61,11 @@ function buildEventEmbed(event, counts) {
       {
         name: 'RSVP',
         value: `Going: ${counts.going_count}\nMaybe: ${counts.maybe_count}\nNot Going: ${counts.not_going_count}`,
+        inline: true
+      },
+      {
+        name: 'XP',
+        value: `RSVP: ${event.xp_rsvp || 0}\nAttend: ${event.xp_attendance || 0}\nBonus: ${Number(event.xp_duration_bonus || 0) + Number(event.xp_participation_bonus || 0)}`,
         inline: true
       }
     )
@@ -73,7 +94,7 @@ function buildEventEmbed(event, counts) {
 function buildEventComponents(event) {
   if (event.status !== 'scheduled') return [];
 
-  const row = new ActionRowBuilder().addComponents(
+  const rsvpRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(buildRsvpCustomId(event.id, RSVP_STATES.GOING))
       .setLabel('Going')
@@ -88,9 +109,17 @@ function buildEventComponents(event) {
       .setStyle(ButtonStyle.Danger)
   );
 
+  const checkInRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(buildAttendCustomId(event.id))
+      .setLabel('Check In')
+      .setStyle(ButtonStyle.Primary)
+  );
+
   if (event.external_url) {
     return [
-      row,
+      rsvpRow,
+      checkInRow,
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setLabel('Open Link')
@@ -100,7 +129,7 @@ function buildEventComponents(event) {
     ];
   }
 
-  return [row];
+  return [rsvpRow, checkInRow];
 }
 
 function validateLink(input) {
@@ -147,6 +176,19 @@ async function refreshEventMessage(client, event) {
 }
 
 async function createEvent(interaction) {
+  const startsAtInput = interaction.options.getString('starts_at', true);
+  const startsAt = parseLocalDateTimeString(startsAtInput);
+
+  return createEventPrepared(interaction, {
+    title: interaction.options.getString('title', true),
+    description: interaction.options.getString('description') || null,
+    externalUrl: interaction.options.getString('link'),
+    startsAt,
+    createdBy: interaction.user.id
+  });
+}
+
+async function createEventPrepared(interaction, data) {
   const settings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
   if (!settings.event_enabled) {
     throw new Error('Events are currently disabled.');
@@ -156,8 +198,7 @@ async function createEvent(interaction) {
     throw new Error('The event channel is not configured yet.');
   }
 
-  const startsAtInput = interaction.options.getString('starts_at', true);
-  const startsAt = parseLocalDateTimeString(startsAtInput);
+  const startsAt = data.startsAt instanceof Date ? data.startsAt : parseLocalDateTimeString(data.startsAt);
   if (!startsAt) {
     throw new Error('Use `YYYY-MM-DD HH:MM` for the event time.');
   }
@@ -174,17 +215,24 @@ async function createEvent(interaction) {
   const event = await eventRepository.createEvent({
     guildId: interaction.guild.id,
     channelId: channel.id,
-    title: interaction.options.getString('title', true),
-    description: interaction.options.getString('description') || null,
-    externalUrl: validateLink(interaction.options.getString('link')),
+    title: data.title,
+    description: data.description || null,
+    externalUrl: validateLink(data.externalUrl),
     startsAt,
-    createdBy: interaction.user.id
+    createdBy: data.createdBy || interaction.user.id
   });
 
   const message = await renderEventMessage(channel, event);
-  const updated = await eventRepository.updateEvent(interaction.guild.id, event.id, {
+  const updates = {
     message_id: message.id
-  });
+  };
+
+  if (data.endsAt) updates.ends_at = data.endsAt;
+  if (data.attendanceChannelId) updates.attendance_channel_id = data.attendanceChannelId;
+  if (Number.isFinite(Number(data.xpRsvp))) updates.xp_rsvp = Number(data.xpRsvp);
+  if (Number.isFinite(Number(data.xpAttendance))) updates.xp_attendance = Number(data.xpAttendance);
+
+  const updated = await eventRepository.updateEvent(interaction.guild.id, event.id, updates);
 
   return {
     event: updated,
@@ -220,21 +268,60 @@ async function handleRsvp(interaction) {
   const parsed = parseRsvpCustomId(interaction.customId);
   if (!parsed) return false;
 
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const event = await eventRepository.findById(interaction.guild.id, parsed.eventId);
   if (!event || event.status !== 'scheduled') {
-    await interaction.reply({
-      content: 'That event is no longer accepting RSVPs.',
-      ephemeral: true
-    }).catch(() => null);
+    await interaction.editReply('That event is no longer accepting RSVPs.').catch(() => null);
     return true;
   }
 
+  const previousRsvp = await eventRepository.getUserRsvp(event.id, interaction.user.id);
   await eventRepository.upsertRsvp(event.id, interaction.user.id, parsed.state);
-  await refreshEventMessage(interaction.client, event);
-  await interaction.reply({
-    content: `RSVP updated: ${parsed.state.replace('_', ' ')}.`,
-    ephemeral: true
-  }).catch(() => null);
+
+  const xpResult = await eventXpService.awardRsvpXp(
+    interaction.client,
+    event,
+    interaction.user.id,
+    previousRsvp ? previousRsvp.status : null,
+    parsed.state
+  ).catch(() => ({ awarded: false }));
+
+  const xpText = xpResult.awarded ? ` You earned ${xpResult.xpDelta} XP.` : '';
+  await interaction.editReply(`RSVP updated: ${parsed.state.replace('_', ' ')}.${xpText}`).catch(() => null);
+  await refreshEventMessage(interaction.client, event).catch(error => {
+    logger.warn('Failed to refresh event RSVP message', error);
+  });
+  return true;
+}
+
+async function handleAttendance(interaction) {
+  const parsed = parseAttendCustomId(interaction.customId);
+  if (!parsed) return false;
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const event = await eventRepository.findById(interaction.guild.id, parsed.eventId);
+  if (!event || !['scheduled', 'completed'].includes(event.status)) {
+    await interaction.editReply('That event is no longer accepting check-ins.').catch(() => null);
+    return true;
+  }
+
+  const startsAt = new Date(event.starts_at);
+  if (startsAt.getTime() > Date.now() + 10 * 60 * 1000) {
+    await interaction.editReply('Check-in opens shortly before the event starts.').catch(() => null);
+    return true;
+  }
+
+  const result = await eventXpService.recordAttendance(interaction.client, event, interaction.user.id, {
+    source: 'button'
+  });
+
+  const xpText = result.award && result.award.awarded
+    ? ` You earned ${result.award.xpDelta} XP.`
+    : '';
+
+  await interaction.editReply(`Checked in for **${event.title}**.${xpText}`).catch(() => null);
   return true;
 }
 
@@ -287,13 +374,19 @@ async function processDueReminders(client, now = new Date()) {
     });
   }
 
-  await eventRepository.markCompletedBefore(now);
+  const completed = await eventRepository.markCompletedBefore(now);
+  for (const event of completed) {
+    await eventXpService.sendPostEventPrompt(client, event);
+  }
 }
 
 module.exports = {
   createEvent,
+  createEventPrepared,
   cancelEvent,
   handleRsvp,
+  handleAttendance,
   processDueReminders,
-  parseRsvpCustomId
+  parseRsvpCustomId,
+  parseAttendCustomId
 };

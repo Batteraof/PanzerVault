@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PanzerVault Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/assets/panzervault-logo.svg" alt="PanzerVault logo">
+          <div>
+            <strong>PanzerVault</strong>
+            <span>Command Center</span>
+          </div>
+        </div>
+        <nav>
+          <button class="nav-item active" data-view="overview">Overview</button>
+          <button class="nav-item" data-view="events">Events</button>
+          <button class="nav-item" data-view="content">Content</button>
+          <button class="nav-item" data-view="tickets">Tickets</button>
+          <button class="nav-item" data-view="analytics">Analytics</button>
+          <button class="nav-item" data-view="roles">Roles</button>
+        </nav>
+      </aside>
+
+      <main>
+        <section class="hero">
+          <img class="hero-bg" src="/assets/panzervault-banner.svg" alt="">
+          <div class="hero-content">
+            <img src="/assets/server-logo.svg" alt="Server logo">
+            <div>
+              <p>Live operations dashboard</p>
+              <h1>PanzerVault Bot</h1>
+              <span>Events, content, XP, tickets, and recognition in one place.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="toolbar">
+          <div>
+            <strong id="view-title">Overview</strong>
+            <span id="view-subtitle">Community pulse and next actions</span>
+          </div>
+          <button id="refresh-button" type="button">Refresh</button>
+        </section>
+
+        <section id="overview" class="view active">
+          <div class="stat-grid">
+            <article class="stat-card">
+              <span>Active Users</span>
+              <strong id="active-users">0</strong>
+              <small>Last 30 days</small>
+            </article>
+            <article class="stat-card">
+              <span>Upcoming Events</span>
+              <strong id="event-count">0</strong>
+              <small>Scheduled</small>
+            </article>
+            <article class="stat-card">
+              <span>Open Tickets</span>
+              <strong id="open-tickets">0</strong>
+              <small>Needs attention</small>
+            </article>
+            <article class="stat-card">
+              <span>Featured Content</span>
+              <strong id="content-count">0</strong>
+              <small>Recent posts</small>
+            </article>
+          </div>
+          <div class="two-column">
+            <article class="panel">
+              <header><h2>Upcoming Events</h2></header>
+              <div id="overview-events" class="list"></div>
+            </article>
+            <article class="panel">
+              <header><h2>Top Contributors</h2></header>
+              <div id="top-contributors" class="list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="events" class="view">
+          <article class="panel">
+            <header>
+              <h2>Event Operations</h2>
+              <span>RSVPs, attendance, and XP configuration</span>
+            </header>
+            <div id="events-list" class="table-list"></div>
+          </article>
+        </section>
+
+        <section id="content" class="view">
+          <article class="panel">
+            <header>
+              <h2>Content Discovery</h2>
+              <span>Gallery posts and creator videos</span>
+            </header>
+            <div id="content-grid" class="content-grid"></div>
+          </article>
+        </section>
+
+        <section id="tickets" class="view">
+          <article class="panel">
+            <header>
+              <h2>Tickets</h2>
+              <span>Categories, status, and response time</span>
+            </header>
+            <div id="ticket-board" class="ticket-board"></div>
+          </article>
+        </section>
+
+        <section id="analytics" class="view">
+          <article class="panel">
+            <header>
+              <h2>Activity Trends</h2>
+              <span>Lightweight 14-day community signal</span>
+            </header>
+            <div id="analytics-bars" class="bars"></div>
+          </article>
+        </section>
+
+        <section id="roles" class="view">
+          <article class="panel">
+            <header>
+              <h2>Roles / Onboarding</h2>
+              <span>Visual configuration surface for the next dashboard phase</span>
+            </header>
+            <div class="empty-state">
+              Role and onboarding editing is scaffolded here so it can be connected to the existing config services without changing the live Discord flow first.
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

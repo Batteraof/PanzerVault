@@ -1,6 +1,5 @@
-const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const spotlightService = require('../modules/community/services/spotlightService');
-const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -45,11 +44,11 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guild) {
-      await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
       return;
     }
 
-    await beginEphemeralReply(interaction, 'Updating Community Spotlight...');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const subcommand = interaction.options.getSubcommand();

@@ -44,6 +44,14 @@ async function updateEvent(guildId, eventId, updates, client) {
     'cancelled_at',
     'cancelled_by',
     'cancellation_reason',
+    'ends_at',
+    'attendance_channel_id',
+    'xp_rsvp',
+    'xp_attendance',
+    'xp_duration_bonus',
+    'xp_participation_bonus',
+    'feedback_prompt_sent_at',
+    'content_prompt_sent_at',
     'updated_at'
   ];
   const entries = Object.entries(updates).filter(([key]) => allowed.includes(key));
@@ -195,6 +203,86 @@ async function getUserRsvp(eventId, userId, client) {
   return result.rows[0] || null;
 }
 
+async function upsertAttendance(data, client) {
+  const result = await executor(client).query(
+    `
+    INSERT INTO event_attendance (
+      event_id,
+      guild_id,
+      user_id,
+      source,
+      duration_seconds,
+      participation_score,
+      xp_awarded
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    ON CONFLICT (event_id, user_id)
+    DO UPDATE SET
+      source = EXCLUDED.source,
+      duration_seconds = GREATEST(event_attendance.duration_seconds, EXCLUDED.duration_seconds),
+      participation_score = GREATEST(event_attendance.participation_score, EXCLUDED.participation_score),
+      xp_awarded = GREATEST(event_attendance.xp_awarded, EXCLUDED.xp_awarded),
+      updated_at = now()
+    RETURNING *
+    `,
+    [
+      data.eventId,
+      data.guildId,
+      data.userId,
+      data.source || 'button',
+      data.durationSeconds || 0,
+      data.participationScore || 0,
+      data.xpAwarded || 0
+    ]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function upsertEventStreak(guildId, userId, eventId, attendedAt, client) {
+  const result = await executor(client).query(
+    `
+    INSERT INTO member_event_streaks (
+      guild_id,
+      user_id,
+      streak_count,
+      best_streak_count,
+      last_event_id,
+      last_attended_at
+    )
+    VALUES ($1, $2, 1, 1, $3, $4)
+    ON CONFLICT (guild_id, user_id)
+    DO UPDATE SET
+      streak_count = member_event_streaks.streak_count + 1,
+      best_streak_count = GREATEST(
+        member_event_streaks.best_streak_count,
+        member_event_streaks.streak_count + 1
+      ),
+      last_event_id = EXCLUDED.last_event_id,
+      last_attended_at = EXCLUDED.last_attended_at,
+      updated_at = now()
+    RETURNING *
+    `,
+    [guildId, userId, eventId, attendedAt]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function listAttendance(eventId, client) {
+  const result = await executor(client).query(
+    `
+    SELECT *
+    FROM event_attendance
+    WHERE event_id = $1
+    ORDER BY duration_seconds DESC, checked_in_at ASC
+    `,
+    [eventId]
+  );
+
+  return result.rows;
+}
+
 async function countCreatedBetween(guildId, start, end, client) {
   const result = await executor(client).query(
     `
@@ -221,5 +309,8 @@ module.exports = {
   upsertRsvp,
   getRsvpCounts,
   getUserRsvp,
+  upsertAttendance,
+  upsertEventStreak,
+  listAttendance,
   countCreatedBetween
 };

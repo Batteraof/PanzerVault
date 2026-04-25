@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Server logo">
+  <rect width="512" height="512" rx="84" fill="#111827"/>
+  <path d="M88 132h336l-38 248H126L88 132Z" fill="#171e28" stroke="#9fb6ff" stroke-width="18"/>
+  <path d="M156 208h200v48H156z" fill="#d84f4f"/>
+  <path d="M186 290h140v34H186z" fill="#edf2ff" opacity="0.85"/>
+  <path d="M110 396h292" stroke="#d84f4f" stroke-width="18" stroke-linecap="round"/>
+</svg>

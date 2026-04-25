@@ -1,6 +1,8 @@
 const { EmbedBuilder } = require('discord.js');
 const communitySettingsService = require('../../config/services/communitySettingsService');
 const videoSubmissionRepository = require('../../../db/repositories/videoSubmissionRepository');
+const xpService = require('../../leveling/services/xpService');
+const contentTagService = require('../../content/services/contentTagService');
 const { validateYoutubeUrl, youtubeVideoId } = require('../../gallery/utils/youtubeUtils');
 
 function thumbnailForVideo(url) {
@@ -21,7 +23,7 @@ async function notifyCommunityChannel(client, settings, submission, message) {
   }).catch(() => null);
 }
 
-async function submit(interaction) {
+async function submitPrepared(interaction, data) {
   const settings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
   if (!settings.video_enabled) {
     throw new Error('Video submissions are currently disabled.');
@@ -31,7 +33,7 @@ async function submit(interaction) {
     throw new Error('The video channel is not configured yet.');
   }
 
-  const videoUrl = validateYoutubeUrl(interaction.options.getString('url', true));
+  const videoUrl = validateYoutubeUrl(data.url);
   if (!videoUrl) {
     throw new Error('Video links must be valid YouTube URLs.');
   }
@@ -41,8 +43,9 @@ async function submit(interaction) {
     throw new Error('The configured video channel is missing or not text based.');
   }
 
-  const title = interaction.options.getString('title', true);
-  const description = interaction.options.getString('description') || null;
+  const title = data.title;
+  const description = data.description || null;
+  const tags = contentTagService.normalizeTags(data.tags || {});
 
   const submission = await videoSubmissionRepository.createSubmission({
     guildId: interaction.guild.id,
@@ -51,8 +54,10 @@ async function submit(interaction) {
     description,
     videoUrl,
     targetChannelId: channel.id,
-    sourceInteractionRef: interaction.id
+    sourceInteractionRef: data.sourceInteractionRef || interaction.id
   });
+
+  await videoSubmissionRepository.attachTags(submission.id, tags);
 
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
@@ -61,7 +66,8 @@ async function submit(interaction) {
     .setDescription(description || 'No description provided.')
     .addFields(
       { name: 'Submitted By', value: `${interaction.user}`, inline: true },
-      { name: 'Channel', value: `<#${channel.id}>`, inline: true }
+      { name: 'Channel', value: `<#${channel.id}>`, inline: true },
+      { name: 'Tags', value: contentTagService.tagsToText(tags), inline: false }
     )
     .setFooter({ text: `Video #${submission.id}` })
     .setTimestamp();
@@ -79,12 +85,41 @@ async function submit(interaction) {
   const updated = await videoSubmissionRepository.updateMessageId(submission.id, message.id);
   await notifyCommunityChannel(interaction.client, settings, updated, message);
 
+  const award = await xpService.awardManualXp({
+    client: interaction.client,
+    guildId: interaction.guild.id,
+    userId: interaction.user.id,
+    xpDelta: 15,
+    sourceType: 'content_submission',
+    sourceRef: `video:${submission.id}`,
+    metadata: {
+      submissionId: submission.id,
+      tags,
+      title
+    }
+  }).catch(() => null);
+
+  if (award && award.awarded) {
+    await videoSubmissionRepository.updateXpAwarded(submission.id, award.xpDelta).catch(() => null);
+  }
+
   return {
     submission: updated,
+    award,
     message
   };
 }
 
+async function submit(interaction) {
+  return submitPrepared(interaction, {
+    title: interaction.options.getString('title', true),
+    url: interaction.options.getString('url', true),
+    description: interaction.options.getString('description') || null,
+    sourceInteractionRef: interaction.id
+  });
+}
+
 module.exports = {
-  submit
+  submit,
+  submitPrepared
 };

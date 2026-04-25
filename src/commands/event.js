@@ -1,6 +1,6 @@
-const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const eventService = require('../modules/community/services/eventService');
-const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
+const eventCreateFlow = require('../modules/interactions/flows/eventCreateFlow');
 const logger = require('../logger');
 
 module.exports = {
@@ -11,33 +11,7 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('create')
-        .setDescription('Create a new event with RSVP buttons.')
-        .addStringOption(option =>
-          option
-            .setName('title')
-            .setDescription('Event title.')
-            .setRequired(true)
-            .setMaxLength(120)
-        )
-        .addStringOption(option =>
-          option
-            .setName('starts_at')
-            .setDescription('Start time in server local time, format: YYYY-MM-DD HH:MM')
-            .setRequired(true)
-        )
-        .addStringOption(option =>
-          option
-            .setName('description')
-            .setDescription('Optional event description.')
-            .setRequired(false)
-            .setMaxLength(500)
-        )
-        .addStringOption(option =>
-          option
-            .setName('link')
-            .setDescription('Optional external link for signups or extra info.')
-            .setRequired(false)
-        )
+        .setDescription('Create a new event with a guided modal.')
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -61,20 +35,19 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guild) {
-      await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
       return;
     }
-
-    await beginEphemeralReply(interaction, 'Updating event...');
 
     try {
       const subcommand = interaction.options.getSubcommand();
 
       if (subcommand === 'create') {
-        const result = await eventService.createEvent(interaction);
-        await interaction.editReply(`Event #${result.event.id} is live in <#${result.message.channel.id}>.`);
+        await eventCreateFlow.start(interaction);
         return;
       }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       if (subcommand === 'cancel') {
         const result = await eventService.cancelEvent(interaction);

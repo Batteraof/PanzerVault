@@ -1,6 +1,5 @@
-const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const rankAdminService = require('../modules/admin/services/rankAdminService');
-const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -26,7 +25,7 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Rank reset can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -34,12 +33,12 @@ module.exports = {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
         content: 'You need Manage Server permission to reset ranks.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
-    await beginEphemeralReply(interaction, 'Resetting rank...');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const targetUser = interaction.options.getUser('user', true);

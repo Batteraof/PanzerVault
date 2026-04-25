@@ -18,6 +18,13 @@ class TicketUserError extends Error {
   }
 }
 
+const CATEGORY_LABELS = {
+  support: 'Support',
+  report: 'Report',
+  application: 'Application',
+  event_issue: 'Event Issue'
+};
+
 function sanitizeSubject(subject) {
   if (!subject || !subject.trim()) return null;
   return subject.trim().slice(0, 120);
@@ -96,7 +103,7 @@ async function createTicketChannel(interaction, ticket, settings) {
   });
 }
 
-async function openTicket(interaction, subjectInput) {
+async function openTicket(interaction, subjectInput, options = {}) {
   const settings = await ticketSettingsService.ensureGuildSettings(interaction.guild.id);
 
   if (!settings.tickets_enabled) {
@@ -113,12 +120,19 @@ async function openTicket(interaction, subjectInput) {
   }
 
   const subject = sanitizeSubject(subjectInput);
+  const category = CATEGORY_LABELS[options.category] ? options.category : 'support';
+  const details = options.details ? String(options.details).trim().slice(0, 1000) : null;
   const ticket = await db.withTransaction(async client => {
     const created = await ticketRepository.createTicket(
       interaction.guild.id,
       interaction.user.id,
       subject,
-      client
+      client,
+      {
+        category,
+        priority: options.priority || 'normal',
+        details
+      }
     );
 
     await ticketEventRepository.insertEvent(
@@ -127,7 +141,7 @@ async function openTicket(interaction, subjectInput) {
         ticketId: created.id,
         actorId: interaction.user.id,
         action: 'open',
-        metadata: { subject }
+        metadata: { subject, category, details }
       },
       client
     );
@@ -149,9 +163,10 @@ async function openTicket(interaction, subjectInput) {
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(`Ticket #${ticket.id}`)
-      .setDescription(subject || 'Support will be with you shortly.')
+      .setDescription(details || subject || 'Support will be with you shortly.')
       .addFields(
         { name: 'Opened By', value: `<@${interaction.user.id}>`, inline: true },
+        { name: 'Category', value: CATEGORY_LABELS[category], inline: true },
         { name: 'Status', value: 'Open', inline: true }
       )
       .setTimestamp();
@@ -170,6 +185,7 @@ async function openTicket(interaction, subjectInput) {
         { name: 'Ticket', value: `#${ticket.id}`, inline: true },
         { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
         { name: 'Channel', value: `<#${channel.id}>`, inline: true },
+        { name: 'Category', value: CATEGORY_LABELS[category], inline: true },
         { name: 'Subject', value: subject || 'No subject provided.', inline: false }
       ],
       0x57F287
@@ -328,6 +344,7 @@ async function removeUser(interaction, targetUser) {
 
 module.exports = {
   TicketUserError,
+  CATEGORY_LABELS,
   openTicket,
   closeTicket,
   addUser,

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="PanzerVault dashboard banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="600">
+      <stop stop-color="#0d1117"/>
+      <stop offset="0.55" stop-color="#182233"/>
+      <stop offset="1" stop-color="#2a181a"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="220" y1="120" x2="1420" y2="460">
+      <stop stop-color="#d84f4f" stop-opacity="0.68"/>
+      <stop offset="1" stop-color="#9fb6ff" stop-opacity="0.52"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="600" fill="url(#bg)"/>
+  <path d="M0 420C262 348 418 360 690 416c282 58 531 48 910-96v280H0z" fill="#0d1117" opacity="0.62"/>
+  <path d="M278 270h710l92 100-92 100H278l-92-100 92-100Z" fill="url(#beam)" opacity="0.78"/>
+  <path d="M380 332h488v70H380z" fill="#0d1117" opacity="0.88"/>
+  <path d="M796 344h300v42H796z" fill="#d84f4f"/>
+  <path d="M294 458h760v42H294z" fill="#edf2ff" opacity="0.12"/>
+  <circle cx="426" cy="462" r="48" fill="#111827" stroke="#9fb6ff" stroke-width="14"/>
+  <circle cx="590" cy="462" r="48" fill="#111827" stroke="#9fb6ff" stroke-width="14"/>
+  <circle cx="754" cy="462" r="48" fill="#111827" stroke="#9fb6ff" stroke-width="14"/>
+  <path d="M1052 178h360" stroke="#9fb6ff" stroke-width="2" opacity="0.3"/>
+  <path d="M1134 226h284" stroke="#d84f4f" stroke-width="2" opacity="0.34"/>
+  <path d="M1188 274h220" stroke="#edf2ff" stroke-width="2" opacity="0.18"/>
+</svg>

@@ -1,6 +1,6 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const ticketService = require('../modules/tickets/services/ticketService');
-const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
+const ticketCreateFlow = require('../modules/interactions/flows/ticketCreateFlow');
 const logger = require('../logger');
 
 function messageForError(error) {
@@ -16,14 +16,7 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('open')
-        .setDescription('Open a support ticket.')
-        .addStringOption(option =>
-          option
-            .setName('subject')
-            .setDescription('Short description of what you need help with.')
-            .setRequired(false)
-            .setMaxLength(120)
-        )
+        .setDescription('Open a guided support ticket.')
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -42,21 +35,20 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Ticket commands can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
     const subcommand = interaction.options.getSubcommand();
-    await beginEphemeralReply(interaction, 'Working on your ticket...');
 
     try {
       if (subcommand === 'open') {
-        const subject = interaction.options.getString('subject') || null;
-        const result = await ticketService.openTicket(interaction, subject);
-        await interaction.editReply(`Ticket #${result.ticket.id} is open in ${result.channel}.`);
+        await ticketCreateFlow.start(interaction);
         return;
       }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       if (subcommand === 'close') {
         const reason = interaction.options.getString('reason') || null;

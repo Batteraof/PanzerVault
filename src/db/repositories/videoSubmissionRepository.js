@@ -49,6 +49,36 @@ async function updateMessageId(submissionId, messageId, client) {
   return result.rows[0] || null;
 }
 
+async function updateXpAwarded(submissionId, xpAwarded, client) {
+  const result = await executor(client).query(
+    `
+    UPDATE video_submissions
+    SET xp_awarded = $2, updated_at = now()
+    WHERE id = $1
+    RETURNING *
+    `,
+    [submissionId, xpAwarded]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function attachTags(submissionId, tags, client) {
+  const entries = Object.entries(tags || {});
+
+  for (const [tagType, tagValue] of entries) {
+    await executor(client).query(
+      `
+      INSERT INTO video_submission_tags (submission_id, tag_type, tag_value)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (submission_id, tag_type)
+      DO UPDATE SET tag_value = EXCLUDED.tag_value
+      `,
+      [submissionId, tagType, tagValue]
+    );
+  }
+}
+
 async function findByMessageId(guildId, messageId, client) {
   const result = await executor(client).query(
     `
@@ -103,6 +133,8 @@ async function countPostedBetween(guildId, start, end, client) {
 module.exports = {
   createSubmission,
   updateMessageId,
+  updateXpAwarded,
+  attachTags,
   findByMessageId,
   markRemoved,
   countPostedBetween
