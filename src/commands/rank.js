@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const rankEmbedService = require('../modules/leveling/services/rankEmbedService');
 
 module.exports = {
@@ -16,17 +16,15 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Rank can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
-
-    await interaction.deferReply();
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const rankData = await rankEmbedService.buildRankData(interaction.guild.id, targetUser.id);
     const embed = rankEmbedService.buildRankEmbed(rankData, targetUser);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   }
 };

@@ -1,5 +1,6 @@
-const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const ticketService = require('../modules/tickets/services/ticketService');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function messageForError(error) {
@@ -65,13 +66,13 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Ticket manage commands can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
 
     const subcommand = interaction.options.getSubcommand();
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await beginEphemeralReply(interaction, 'Updating ticket...');
 
     try {
       if (subcommand === 'close') {

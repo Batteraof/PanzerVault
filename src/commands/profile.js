@@ -1,4 +1,4 @@
-const { EmbedBuilder, MessageFlags, SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
 const rankEmbedService = require('../modules/leveling/services/rankEmbedService');
 const gallerySubmissionRepository = require('../db/repositories/gallerySubmissionRepository');
 
@@ -17,12 +17,10 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Profile can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
-
-    await interaction.deferReply();
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const rankData = await rankEmbedService.buildRankData(interaction.guild.id, targetUser.id);
@@ -53,6 +51,6 @@ module.exports = {
       .setFooter({ text: 'Leveling and gallery stats in one view.' })
       .setTimestamp();
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   }
 };

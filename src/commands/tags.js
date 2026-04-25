@@ -1,7 +1,8 @@
-const { MessageFlags, SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const galleryService = require('../modules/gallery/services/galleryService');
 const { CATEGORIES } = require('../modules/gallery/constants/galleryConfig');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function userMessageForError(error) {
@@ -32,12 +33,12 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Tags can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await beginEphemeralReply(interaction, 'Loading approved tags...');
 
     try {
       const category = interaction.options.getString('category');

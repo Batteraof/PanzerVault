@@ -1,6 +1,7 @@
-const { MessageFlags, SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const galleryWizardService = require('../modules/gallery/services/galleryWizardService');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function userMessageForError(error) {
@@ -57,12 +58,12 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Submissions can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await beginEphemeralReply(interaction, 'Opening the submit wizard...');
 
     try {
       await galleryWizardService.start(interaction);

@@ -1,6 +1,7 @@
-const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const galleryModerationService = require('../modules/gallery/services/galleryModerationService');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function userMessageForError(error) {
@@ -83,7 +84,7 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Gallery moderation can only be used in a server.',
-        flags: MessageFlags.Ephemeral
+        ephemeral: true
       });
       return;
     }
@@ -91,7 +92,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'remove') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await beginEphemeralReply(interaction, 'Removing gallery submission...');
 
       try {
         const result = await galleryModerationService.removeSubmission(interaction, {
@@ -115,7 +116,7 @@ module.exports = {
     }
 
     if (subcommand === 'blacklist') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await beginEphemeralReply(interaction, 'Updating gallery blacklist...');
 
       try {
         const targetUser = interaction.options.getUser('user', true);
@@ -130,7 +131,7 @@ module.exports = {
     }
 
     if (subcommand === 'unblacklist') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await beginEphemeralReply(interaction, 'Updating gallery blacklist...');
 
       try {
         const targetUser = interaction.options.getUser('user', true);
@@ -146,7 +147,7 @@ module.exports = {
 
     await interaction.reply({
       content: 'That gallery command is no longer active. Refresh Discord and try again.',
-      flags: MessageFlags.Ephemeral
+      ephemeral: true
     });
   }
 };
