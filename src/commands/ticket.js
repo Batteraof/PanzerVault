@@ -1,6 +1,7 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const ticketService = require('../modules/tickets/services/ticketService');
 const ticketCreateFlow = require('../modules/interactions/flows/ticketCreateFlow');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 function messageForError(error) {
@@ -48,7 +49,7 @@ module.exports = {
         return;
       }
 
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await beginEphemeralReply(interaction, 'Working on your ticket...');
 
       if (subcommand === 'close') {
         const reason = interaction.options.getString('reason') || null;
@@ -59,7 +60,12 @@ module.exports = {
 
       await interaction.editReply('That ticket command is no longer active. Refresh Discord and try again.');
     } catch (error) {
-      await interaction.editReply(messageForError(error));
+      const content = messageForError(error);
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(content);
+        return;
+      }
+      await interaction.reply({ content, flags: MessageFlags.Ephemeral });
     }
   }
 };

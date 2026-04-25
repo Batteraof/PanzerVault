@@ -26,6 +26,14 @@ ALTER TABLE guild_events
   ADD COLUMN IF NOT EXISTS feedback_prompt_sent_at timestamptz,
   ADD COLUMN IF NOT EXISTS content_prompt_sent_at timestamptz;
 
+ALTER TABLE IF EXISTS event_attendance
+  ADD COLUMN IF NOT EXISTS source text,
+  ADD COLUMN IF NOT EXISTS duration_seconds integer,
+  ADD COLUMN IF NOT EXISTS participation_score integer,
+  ADD COLUMN IF NOT EXISTS xp_awarded integer,
+  ADD COLUMN IF NOT EXISTS checked_in_at timestamptz,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz;
+
 CREATE TABLE IF NOT EXISTS event_attendance (
   id bigserial PRIMARY KEY,
   event_id bigint NOT NULL REFERENCES guild_events(id) ON DELETE CASCADE,
@@ -39,6 +47,87 @@ CREATE TABLE IF NOT EXISTS event_attendance (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (event_id, user_id)
 );
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'event_attendance'
+      AND column_name = 'marked_by'
+  ) THEN
+    EXECUTE '
+      UPDATE event_attendance
+      SET source = CASE
+        WHEN marked_by IS NOT NULL AND (source IS NULL OR source = '''''') THEN ''staff''
+        WHEN source IS NULL OR source = '''''' THEN ''button''
+        ELSE source
+      END';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'event_attendance'
+      AND column_name = 'attended_at'
+  ) THEN
+    EXECUTE '
+      UPDATE event_attendance
+      SET checked_in_at = COALESCE(attended_at, checked_in_at, now())';
+  END IF;
+END $$;
+
+UPDATE event_attendance
+SET source = COALESCE(NULLIF(source, ''), 'button'),
+    duration_seconds = COALESCE(duration_seconds, 0),
+    participation_score = COALESCE(participation_score, 0),
+    xp_awarded = COALESCE(xp_awarded, 0),
+    checked_in_at = COALESCE(checked_in_at, now()),
+    updated_at = COALESCE(updated_at, now());
+
+ALTER TABLE event_attendance
+  ALTER COLUMN source SET DEFAULT 'button',
+  ALTER COLUMN source SET NOT NULL,
+  ALTER COLUMN duration_seconds SET DEFAULT 0,
+  ALTER COLUMN duration_seconds SET NOT NULL,
+  ALTER COLUMN participation_score SET DEFAULT 0,
+  ALTER COLUMN participation_score SET NOT NULL,
+  ALTER COLUMN xp_awarded SET DEFAULT 0,
+  ALTER COLUMN xp_awarded SET NOT NULL,
+  ALTER COLUMN checked_in_at SET DEFAULT now(),
+  ALTER COLUMN checked_in_at SET NOT NULL,
+  ALTER COLUMN updated_at SET DEFAULT now(),
+  ALTER COLUMN updated_at SET NOT NULL;
+
+ALTER TABLE event_attendance
+  DROP CONSTRAINT IF EXISTS event_attendance_source_check;
+
+ALTER TABLE event_attendance
+  ADD CONSTRAINT event_attendance_source_check
+  CHECK (source IN ('button', 'voice', 'staff'));
+
+ALTER TABLE event_attendance
+  DROP CONSTRAINT IF EXISTS event_attendance_duration_seconds_check;
+
+ALTER TABLE event_attendance
+  ADD CONSTRAINT event_attendance_duration_seconds_check
+  CHECK (duration_seconds >= 0);
+
+ALTER TABLE event_attendance
+  DROP CONSTRAINT IF EXISTS event_attendance_participation_score_check;
+
+ALTER TABLE event_attendance
+  ADD CONSTRAINT event_attendance_participation_score_check
+  CHECK (participation_score >= 0);
+
+ALTER TABLE event_attendance
+  DROP CONSTRAINT IF EXISTS event_attendance_xp_awarded_check;
+
+ALTER TABLE event_attendance
+  ADD CONSTRAINT event_attendance_xp_awarded_check
+  CHECK (xp_awarded >= 0);
 
 CREATE INDEX IF NOT EXISTS idx_event_attendance_event
   ON event_attendance (event_id, duration_seconds DESC);

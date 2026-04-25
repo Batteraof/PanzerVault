@@ -1,6 +1,7 @@
 const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const eventService = require('../modules/community/services/eventService');
 const eventCreateFlow = require('../modules/interactions/flows/eventCreateFlow');
+const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
 
 module.exports = {
@@ -47,7 +48,7 @@ module.exports = {
         return;
       }
 
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await beginEphemeralReply(interaction, 'Updating event...');
 
       if (subcommand === 'cancel') {
         const result = await eventService.cancelEvent(interaction);
@@ -58,7 +59,14 @@ module.exports = {
       await interaction.editReply('That event command is no longer active.');
     } catch (error) {
       logger.warn('Event command failed', error);
-      await interaction.editReply(`Error: ${error.message || 'Something went wrong while handling that event.'}`);
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(`Error: ${error.message || 'Something went wrong while handling that event.'}`);
+        return;
+      }
+      await interaction.reply({
+        content: `Error: ${error.message || 'Something went wrong while handling that event.'}`,
+        flags: MessageFlags.Ephemeral
+      });
     }
   }
 };
