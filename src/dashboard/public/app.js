@@ -491,7 +491,7 @@ function renderCommunitySettings() {
         <div class="toggle-grid">
           ${renderToggleControl('onboardingEnabled', 'Onboarding flow', 'Keep rules verification and onboarding prompts active.', community.onboarding_enabled !== false)}
           ${renderToggleControl('eventEnabled', 'Events', 'Allow RSVP events and reminders to run.', community.event_enabled !== false)}
-          ${renderToggleControl('videoEnabled', 'Video submissions', 'Accept curated YouTube posts through /video.', community.video_enabled !== false)}
+          ${renderToggleControl('videoEnabled', 'Video submissions', 'Accept curated YouTube posts through /submit.', community.video_enabled !== false)}
           ${renderToggleControl('spotlightEnabled', 'Community spotlight', 'Keep spotlight nominations and monthly rotation active.', community.spotlight_enabled !== false)}
           ${renderToggleControl('anniversaryEnabled', 'Anniversary announcements', 'Celebrate member milestones in the leveling/community channel.', community.anniversary_enabled !== false)}
           ${renderToggleControl('weeklyRecapEnabled', 'Weekly recap', 'Allow the weekly recap job to post its summary.', community.weekly_recap_enabled !== false)}
@@ -517,7 +517,7 @@ function renderCommunitySettings() {
           <label class="field">
             <span>Video channel</span>
             <select name="videoChannelId">${selectOptions(metadata.channels, community.video_channel_id, 'Choose a video channel')}</select>
-            <small>The /video command sends curated YouTube posts here.</small>
+            <small>The video branch of /submit sends curated YouTube posts here.</small>
           </label>
 
           <label class="field">

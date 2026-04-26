@@ -201,7 +201,7 @@ async function buildDraftPayload(draft, options = {}) {
   const embed = new EmbedBuilder()
     .setColor(options.busy ? 0xf59e0b : 0x5865f2)
     .setTitle('Gallery Submission Draft')
-    .setDescription('Upload your images with `/submit`, then finish the rest here without fighting the slash command bar.')
+    .setDescription('Your images are ready. Finish the category, tags, description, and final post here without fighting the slash command bar.')
     .addFields(
       {
         name: 'Images',
@@ -545,7 +545,7 @@ async function handlePost(interaction, draft) {
   return true;
 }
 
-async function start(interaction) {
+async function openDraft(interaction, assets, options = {}) {
   if (!interaction.guild) {
     throw new GalleryUserError('Gallery submissions can only be used in a server.');
   }
@@ -559,12 +559,11 @@ async function start(interaction) {
     throw new GalleryUserError('Gallery channels are not configured yet. Ask staff to set the showcase and meme channels first.');
   }
 
-  const assets = galleryValidationService.getAttachmentOptions(interaction);
   galleryValidationService.validateAttachments(assets);
 
   const draft = {
     id: createDraftId(),
-    sourceRef: interaction.id,
+    sourceRef: options.sourceRef || interaction.id,
     guildId: interaction.guildId,
     userId: interaction.user.id,
     applicationId: interaction.applicationId,
@@ -582,7 +581,25 @@ async function start(interaction) {
   drafts.set(draft.id, draft);
   scheduleDraftExpiry(draft);
 
-  await interaction.editReply(await buildDraftPayload(draft, { settings }));
+  const payload = await buildDraftPayload(draft, { settings });
+  if (options.transport === 'update') {
+    await interaction.update(payload);
+    return;
+  }
+
+  await interaction.editReply(payload);
+}
+
+async function start(interaction) {
+  const assets = galleryValidationService.getAttachmentOptions(interaction);
+  await openDraft(interaction, assets, { transport: 'editReply', sourceRef: interaction.id });
+}
+
+async function startFromAssets(interaction, assets, options = {}) {
+  await openDraft(interaction, assets, {
+    transport: options.transport || 'update',
+    sourceRef: options.sourceRef || interaction.id
+  });
 }
 
 function isWizardInteraction(interaction) {
@@ -622,6 +639,7 @@ async function handleInteraction(interaction) {
 
 module.exports = {
   start,
+  startFromAssets,
   isWizardInteraction,
   handleInteraction
 };

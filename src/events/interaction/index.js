@@ -5,7 +5,6 @@ const rankResetCommand = require('../../commands/rankReset');
 const galleryCommand = require('../../commands/gallery');
 const submitCommand = require('../../commands/submit');
 const tagsCommand = require('../../commands/tags');
-const videoCommand = require('../../commands/video');
 const configCommand = require('../../commands/config');
 const leaderboardCommand = require('../../commands/leaderboard');
 const profileCommand = require('../../commands/profile');
@@ -27,7 +26,6 @@ const slashCommands = new Map([
   [rankResetCommand.data.name, rankResetCommand],
   [submitCommand.data.name, submitCommand],
   [tagsCommand.data.name, tagsCommand],
-  [videoCommand.data.name, videoCommand],
   [galleryCommand.data.name, galleryCommand],
   [configCommand.data.name, configCommand],
   [leaderboardCommand.data.name, leaderboardCommand],

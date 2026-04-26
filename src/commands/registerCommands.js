@@ -9,7 +9,6 @@ const rankResetCommand = require('./rankReset');
 const galleryCommand = require('./gallery');
 const submitCommand = require('./submit');
 const tagsCommand = require('./tags');
-const videoCommand = require('./video');
 const configCommand = require('./config');
 const leaderboardCommand = require('./leaderboard');
 const profileCommand = require('./profile');
@@ -31,7 +30,6 @@ async function registerCommands() {
     rankResetCommand.data.toJSON(),
     submitCommand.data.toJSON(),
     tagsCommand.data.toJSON(),
-    videoCommand.data.toJSON(),
     galleryCommand.data.toJSON(),
     configCommand.data.toJSON(),
     leaderboardCommand.data.toJSON(),

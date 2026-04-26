@@ -15,7 +15,7 @@ function getAttachmentOptions(interaction) {
   const attachments = [];
 
   for (let index = 1; index <= MAX_IMAGES; index += 1) {
-    const attachment = interaction.options.getAttachment(`image_${index}`, index === 1);
+    const attachment = interaction.options.getAttachment(`image_${index}`);
     if (!attachment) continue;
 
     attachments.push({

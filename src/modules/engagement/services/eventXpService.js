@@ -92,7 +92,7 @@ async function sendPostEventPrompt(client, event) {
   await channel.send({
     content: [
       `**${event.title} wrapped up.**`,
-      'Drop your best screenshots or clips with `/submit` or `/video` so the community recap has something to feature.',
+      'Drop your best screenshots or YouTube clips with `/submit` so the community recap has something to feature.',
       'Staff can use the dashboard to review attendance, highlights, and follow-up actions.'
     ].join('\n'),
     allowedMentions: { parse: [] }

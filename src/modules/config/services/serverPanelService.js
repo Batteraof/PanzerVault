@@ -107,18 +107,17 @@ function buildRulesPanel(guild) {
 function buildGalleryGuidePanel(category) {
   const label = CATEGORY_LABELS[category] || 'Gallery';
   const color = category === CATEGORIES.MEME ? 0xFEE75C : 0x5865F2;
-  const categoryHint = category === CATEGORIES.MEME ? 'meme' : 'showcase';
 
   return {
     embeds: [
       new EmbedBuilder()
         .setColor(color)
         .setTitle(`${label} Gallery Guide`)
-        .setDescription('This channel is for curated gallery posts only. Use the submit command from anywhere in the server and the bot will post here for you.')
+        .setDescription('This channel is for curated gallery posts only. Use the submit flow from anywhere in the server and the bot will post here for you.')
         .addFields(
           {
             name: 'How to Submit',
-            value: `Use \`/submit\` with category \`${categoryHint}\`, add 1-5 PNG/JPG images, and include an optional description, tags, or YouTube link.`,
+            value: `Use \`/submit\`, attach 1-5 PNG/JPG images, choose **Gallery**, then finish the rest in the guided wizard.`,
             inline: false
           },
           {
@@ -198,17 +197,17 @@ function buildVideoGuidePanel() {
     embeds: [
       new EmbedBuilder()
         .setColor(0xeb459e)
-        .setTitle('Video Link Guide')
-        .setDescription('Use this channel for curated YouTube posts only. The bot formats the post here and can drop a short heads-up in the main community chat.')
+        .setTitle('Video Submission Guide')
+        .setDescription('Use this channel for curated YouTube posts only. The bot formats the post here and can still drop a short heads-up in the main community chat.')
         .addFields(
           {
             name: 'How to Submit',
-            value: 'Use `/video` with a title, YouTube link, and optional description.',
+            value: 'Use `/submit`, choose **Video**, then fill in the title, YouTube link, description, and tags in the guided flow.',
             inline: false
           },
           {
             name: 'Useful Commands',
-            value: '`/video`\n`/bot`\n`/profile`',
+            value: '`/submit`\n`/bot`\n`/profile`',
             inline: true
           },
           {

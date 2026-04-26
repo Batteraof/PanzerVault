@@ -1,8 +1,10 @@
+const submitEntryFlow = require('./flows/submitEntryFlow');
 const videoSubmitFlow = require('./flows/videoSubmitFlow');
 const ticketCreateFlow = require('./flows/ticketCreateFlow');
 const eventCreateFlow = require('./flows/eventCreateFlow');
 
 const flows = [
+  submitEntryFlow,
   videoSubmitFlow,
   ticketCreateFlow,
   eventCreateFlow

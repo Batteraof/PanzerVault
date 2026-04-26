@@ -113,7 +113,6 @@ The bot uses:
 - `/profile`
 - `/submit`
 - `/tags`
-- `/video`
 - `/spotlight`
 - `/ticket`
 
@@ -179,14 +178,13 @@ Gallery posting is separate from leveling.
 - moderation logs
 - DB-backed tags
 
-Public gallery flow:
+Public submission flow:
 
 - `/submit`
-- upload `image_1` through `image_5`
-- choose category in the guided wizard
-- choose approved tags
-- add description and optional YouTube link in a modal
-- review and post
+- choose `Gallery` or `Video` in the guided entry step
+- for Gallery, attach `image_1` through `image_5` to the slash command first
+- finish category, approved tags, description, and optional YouTube link in the guided wizard
+- for Video, fill in title, YouTube link, description, and tags in the guided form
 
 Gallery categories:
 
@@ -199,10 +197,11 @@ Showcase posts can also send a short heads-up in the configured community channe
 
 ## Video Channel
 
-Use `/video` to post a YouTube link into the dedicated video channel.
+Use `/submit`, choose `Video`, and post a YouTube link into the dedicated video channel.
 
 - title required
 - description optional
+- approved tags supported in the guided flow
 - YouTube links only
 - optional short notification in the main community chat
 - no XP for video posts

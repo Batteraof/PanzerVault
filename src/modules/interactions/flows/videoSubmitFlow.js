@@ -116,8 +116,12 @@ function buildDraftPayload(draft, notice = null) {
   };
 }
 
-async function start(interaction) {
+async function showModal(interaction) {
   await interaction.showModal(buildDetailsModal());
+}
+
+async function start(interaction) {
+  await showModal(interaction);
 }
 
 async function resolveDraft(interaction, draftId) {
@@ -126,7 +130,7 @@ async function resolveDraft(interaction, draftId) {
 
   if (!draft) {
     await interaction.reply({
-      content: 'That video draft expired. Run `/video` again.',
+      content: 'That video draft expired. Run `/submit` again.',
       flags: MessageFlags.Ephemeral
     }).catch(() => null);
     return null;
@@ -231,6 +235,7 @@ async function handle(interaction) {
 
 module.exports = {
   owns,
+  showModal,
   start,
   handle
 };
