@@ -179,61 +179,84 @@ function decorateRowsWithProfiles(rows, profileMap, userField = 'user_id') {
   });
 }
 
+function emptyGuildMetadata(error = null) {
+  return {
+    channels: [],
+    roles: [],
+    error
+  };
+}
+
 async function fetchGuildMetadata(guildId) {
+  if (!guildId) {
+    return emptyGuildMetadata('Dashboard guild metadata is unavailable because no guild is configured.');
+  }
+
   const cached = guildMetadataCache.get(guildId);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;
   }
 
-  const [channelsRaw, rolesRaw] = await Promise.all([
-    discordRequest(`/guilds/${guildId}/channels`),
-    discordRequest(`/guilds/${guildId}/roles`)
-  ]);
+  try {
+    const [channelsRaw, rolesRaw] = await Promise.all([
+      discordRequest(`/guilds/${guildId}/channels`),
+      discordRequest(`/guilds/${guildId}/roles`)
+    ]);
 
-  const categoryMap = new Map(
-    channelsRaw
-      .filter(channel => channel.type === 4)
-      .map(channel => [channel.id, channel])
-  );
-
-  const channels = channelsRaw
-    .filter(channel => channel.type === 0 || channel.type === 5)
-    .map(channel => {
-      const parent = channel.parent_id ? categoryMap.get(channel.parent_id) : null;
-      return {
-        id: channel.id,
-        name: channel.name,
-        type: channel.type,
-        position: channel.position || 0,
-        categoryPosition: parent ? parent.position || 0 : -1,
-        categoryName: parent ? parent.name : null,
-        label: parent ? `${parent.name} / #${channel.name}` : `#${channel.name}`
-      };
-    })
-    .sort((left, right) =>
-      left.categoryPosition - right.categoryPosition ||
-      left.position - right.position ||
-      left.label.localeCompare(right.label)
+    const categoryMap = new Map(
+      channelsRaw
+        .filter(channel => channel.type === 4)
+        .map(channel => [channel.id, channel])
     );
 
-  const roles = rolesRaw
-    .filter(role => role.id !== guildId && !role.managed)
-    .sort((left, right) => right.position - left.position || left.name.localeCompare(right.name))
-    .map(role => ({
-      id: role.id,
-      name: role.name,
-      label: `@${role.name}`,
-      position: role.position
-    }));
+    const channels = channelsRaw
+      .filter(channel => channel.type === 0 || channel.type === 5)
+      .map(channel => {
+        const parent = channel.parent_id ? categoryMap.get(channel.parent_id) : null;
+        return {
+          id: channel.id,
+          name: channel.name,
+          type: channel.type,
+          position: channel.position || 0,
+          categoryPosition: parent ? parent.position || 0 : -1,
+          categoryName: parent ? parent.name : null,
+          label: parent ? `${parent.name} / #${channel.name}` : `#${channel.name}`
+        };
+      })
+      .sort((left, right) =>
+        left.categoryPosition - right.categoryPosition ||
+        left.position - right.position ||
+        left.label.localeCompare(right.label)
+      );
 
-  const value = { channels, roles };
-  guildMetadataCache.set(guildId, {
-    expiresAt: Date.now() + GUILD_METADATA_TTL_MS,
-    value
-  });
-  return value;
+    const roles = rolesRaw
+      .filter(role => role.id !== guildId && !role.managed)
+      .sort((left, right) => right.position - left.position || left.name.localeCompare(right.name))
+      .map(role => ({
+        id: role.id,
+        name: role.name,
+        label: `@${role.name}`,
+        position: role.position
+      }));
+
+    const value = { channels, roles, error: null };
+    guildMetadataCache.set(guildId, {
+      expiresAt: Date.now() + GUILD_METADATA_TTL_MS,
+      value
+    });
+    return value;
+  } catch (error) {
+    logger.warn(`Dashboard guild metadata lookup failed for ${guildId}`, error);
+    if (cached && cached.value) {
+      return {
+        ...cached.value,
+        error: 'Discord metadata could not be refreshed just now. Using the most recent cached channels and roles.'
+      };
+    }
+
+    return emptyGuildMetadata('Discord metadata is temporarily unavailable. Check the bot permissions and try refreshing again.');
+  }
 }
-
 function roleMapFromRows(rows) {
   return Object.fromEntries((rows || []).map(row => [row.option_key, row.role_id]));
 }
@@ -721,3 +744,4 @@ app.use((error, req, res, next) => {
 app.listen(port, () => {
   logger.info(`General Bot dashboard running on http://localhost:${port}`);
 });
+

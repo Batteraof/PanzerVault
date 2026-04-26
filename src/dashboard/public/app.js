@@ -802,22 +802,51 @@ async function handleOnboardingSettingsSubmit(event) {
 async function refresh() {
   setRefreshState(true);
 
-  try {
-    const [overview, events, content, tickets, analytics, settings] = await Promise.all([
-      fetchJson('/api/overview'),
-      fetchJson('/api/events'),
-      fetchJson('/api/content'),
-      fetchJson('/api/tickets'),
-      fetchJson('/api/analytics'),
-      fetchJson('/api/settings')
-    ]);
+  const requests = [
+    ['Overview', fetchJson('/api/overview')],
+    ['Events', fetchJson('/api/events')],
+    ['Content', fetchJson('/api/content')],
+    ['Tickets', fetchJson('/api/tickets')],
+    ['Analytics', fetchJson('/api/analytics')],
+    ['Settings', fetchJson('/api/settings')]
+  ];
 
-    state.overview = overview;
-    state.events = events.events || [];
-    state.content = content;
-    state.tickets = tickets.tickets || [];
-    state.analytics = analytics.trends || [];
-    state.settings = settings;
+  try {
+    const results = await Promise.allSettled(requests.map(([, request]) => request));
+    const failures = [];
+
+    results.forEach((result, index) => {
+      const [label] = requests[index];
+      if (result.status !== 'fulfilled') {
+        console.error(`${label} refresh failed`, result.reason);
+        failures.push(label);
+        return;
+      }
+
+      const payload = result.value;
+      switch (label) {
+        case 'Overview':
+          state.overview = payload;
+          break;
+        case 'Events':
+          state.events = payload.events || [];
+          break;
+        case 'Content':
+          state.content = payload;
+          break;
+        case 'Tickets':
+          state.tickets = payload.tickets || [];
+          break;
+        case 'Analytics':
+          state.analytics = payload.trends || [];
+          break;
+        case 'Settings':
+          state.settings = payload;
+          break;
+        default:
+          break;
+      }
+    });
 
     renderOverview();
     renderEvents();
@@ -825,16 +854,18 @@ async function refresh() {
     renderTickets();
     renderAnalytics();
     renderSettings();
+
+    if (failures.length) {
+      const label = failures.length === 1 ? failures[0] : `${failures.length} sections`;
+      setStatus(`Updated with warnings. ${label} did not refresh cleanly. Check dashboard logs if this keeps happening.`, true);
+      return;
+    }
+
     setStatus(`Updated ${formatDateTime(new Date())}`);
-  } catch (error) {
-    console.error(error);
-    setStatus('Refresh failed. Check dashboard logs.', true);
-    throw error;
   } finally {
     setRefreshState(false);
   }
 }
-
 function setView(view) {
   document.querySelectorAll('.view').forEach(element => {
     element.classList.toggle('active', element.id === view);
