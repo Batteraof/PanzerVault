@@ -237,7 +237,38 @@ function buildLevelingSection(levelingSettings, communitySettings, metadata) {
   return buildSection('leveling', 'Leveling Feed', items);
 }
 
-function buildGallerySection(gallerySettings, metadata) {
+function buildMediaSection(communitySettings, metadata) {
+  return buildSection('media', 'Media Intake', [
+    channelItem(
+      metadata,
+      communitySettings?.media_channel_id,
+      'Media channel',
+      {
+        missingStatus: 'warn',
+        missingMessage: 'Not configured yet. Direct media uploads will stay manual until you set a shared media channel.'
+      }
+    )
+  ]);
+}
+
+function buildGallerySection(gallerySettings, communitySettings, metadata) {
+  if (communitySettings?.media_channel_id) {
+    return buildSection(
+      'gallery',
+      'Gallery',
+      [
+        makeItem('ok', 'Shared media flow', 'Direct uploads are handled through the shared media channel. Separate showcase and meme archive channels are optional.'),
+        hasChannel(metadata, gallerySettings?.showcase_channel_id)
+          ? makeItem('ok', 'Showcase archive', 'Configured and visible to the bot.')
+          : makeItem('ok', 'Showcase archive', 'Optional and not configured.'),
+        hasChannel(metadata, gallerySettings?.meme_channel_id)
+          ? makeItem('ok', 'Meme archive', 'Configured and visible to the bot.')
+          : makeItem('ok', 'Meme archive', 'Optional and not configured.')
+      ],
+      'Shared media intake is live. Separate archive channels are optional.'
+    );
+  }
+
   return buildSection('gallery', 'Gallery', [
     channelItem(metadata, gallerySettings?.showcase_channel_id, 'Showcase channel'),
     channelItem(metadata, gallerySettings?.meme_channel_id, 'Meme channel'),
@@ -254,6 +285,20 @@ function buildGallerySection(gallerySettings, metadata) {
 }
 
 function buildVideoSection(communitySettings, metadata) {
+  if (communitySettings?.media_channel_id) {
+    return buildSection(
+      'video',
+      'Video Submissions',
+      [
+        makeItem('ok', 'Shared media flow', 'Videos and YouTube links are handled in the shared media channel. A separate video archive channel is optional.'),
+        hasChannel(metadata, communitySettings?.video_channel_id)
+          ? makeItem('ok', 'Video archive channel', 'Configured and visible to the bot.')
+          : makeItem('ok', 'Video archive channel', 'Optional and not configured.')
+      ],
+      'Shared media intake is configured. Separate video archive is optional.'
+    );
+  }
+
   if (communitySettings?.video_enabled === false) {
     return offSection('video', 'Video Submissions', 'Video submissions are disabled for this guild.');
   }
@@ -341,7 +386,8 @@ function buildReadinessReport(context) {
     buildRulesSection(context.botSettings || {}, metadata),
     buildOnboardingSection(context.communitySettings || {}, skillRoles, regionRoles, metadata),
     buildLevelingSection(context.levelingSettings || {}, context.communitySettings || {}, metadata),
-    buildGallerySection(context.gallerySettings || {}, metadata),
+    buildMediaSection(context.communitySettings || {}, metadata),
+    buildGallerySection(context.gallerySettings || {}, context.communitySettings || {}, metadata),
     buildVideoSection(context.communitySettings || {}, metadata),
     buildEventsSection(context.communitySettings || {}, metadata),
     buildSpotlightSection(context.communitySettings || {}, metadata),

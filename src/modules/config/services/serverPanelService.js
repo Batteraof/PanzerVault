@@ -18,6 +18,7 @@ const PANEL_MARKERS = {
   rules: 'PanzerVault Rules Panel',
   showcase: 'PanzerVault Showcase Guide',
   meme: 'PanzerVault Meme Guide',
+  media: 'PanzerVault Media Guide',
   video: 'PanzerVault Video Guide',
   leveling: 'PanzerVault Leveling Guide'
 };
@@ -102,6 +103,40 @@ function buildRulesPanel(guild) {
   ];
 
   return { embeds: [embed], components };
+}
+
+function buildMediaGuidePanel() {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('Media Guide')
+        .setDescription('Post screenshots, art, uploaded clips, or YouTube links directly in this channel. When the bot detects real media, it replies with a clean button so you can add a title, reusable tags, and an optional description.')
+        .addFields(
+          {
+            name: 'How It Works',
+            value: '1. Post your media normally.\n2. Click **Add details** on the bot reply.\n3. Fill in the popup form.\n4. Reuse existing tags or type your own. If a tag is close to an existing one, the bot suggests it.',
+            inline: false
+          },
+          {
+            name: 'What Fits Here',
+            value: 'Screenshots, tank moments, art, short uploaded clips, and relevant YouTube posts.',
+            inline: true
+          },
+          {
+            name: 'Notes',
+            value: 'Normal chatting is allowed here. The bot only prompts when it sees real media. Media posts do not grant XP.',
+            inline: true
+          },
+          {
+            name: 'Need Help?',
+            value: supportLine(),
+            inline: false
+          }
+        )
+        .setFooter({ text: PANEL_MARKERS.media })
+    ]
+  };
 }
 
 function buildGalleryGuidePanel(category) {
@@ -304,39 +339,51 @@ async function refreshGuildPanels(client, guildId) {
     }
   }
 
-  if (gallerySettings.showcase_channel_id) {
-    const showcaseChannel = await fetchTextChannel(client, gallerySettings.showcase_channel_id);
-    if (showcaseChannel) {
+  if (communitySettings.media_channel_id) {
+    const mediaChannel = await fetchTextChannel(client, communitySettings.media_channel_id);
+    if (mediaChannel) {
       await upsertPanel(
-        showcaseChannel,
-        PANEL_MARKERS.showcase,
-        buildGalleryGuidePanel(CATEGORIES.SHOWCASE),
+        mediaChannel,
+        PANEL_MARKERS.media,
+        buildMediaGuidePanel(),
         client.user.id
       );
     }
-  }
-
-  if (gallerySettings.meme_channel_id) {
-    const memeChannel = await fetchTextChannel(client, gallerySettings.meme_channel_id);
-    if (memeChannel) {
-      await upsertPanel(
-        memeChannel,
-        PANEL_MARKERS.meme,
-        buildGalleryGuidePanel(CATEGORIES.MEME),
-        client.user.id
-      );
+  } else {
+    if (gallerySettings.showcase_channel_id) {
+      const showcaseChannel = await fetchTextChannel(client, gallerySettings.showcase_channel_id);
+      if (showcaseChannel) {
+        await upsertPanel(
+          showcaseChannel,
+          PANEL_MARKERS.showcase,
+          buildGalleryGuidePanel(CATEGORIES.SHOWCASE),
+          client.user.id
+        );
+      }
     }
-  }
 
-  if (communitySettings.video_enabled && communitySettings.video_channel_id) {
-    const videoChannel = await fetchTextChannel(client, communitySettings.video_channel_id);
-    if (videoChannel) {
-      await upsertPanel(
-        videoChannel,
-        PANEL_MARKERS.video,
-        buildVideoGuidePanel(),
-        client.user.id
-      );
+    if (gallerySettings.meme_channel_id) {
+      const memeChannel = await fetchTextChannel(client, gallerySettings.meme_channel_id);
+      if (memeChannel) {
+        await upsertPanel(
+          memeChannel,
+          PANEL_MARKERS.meme,
+          buildGalleryGuidePanel(CATEGORIES.MEME),
+          client.user.id
+        );
+      }
+    }
+
+    if (communitySettings.video_enabled && communitySettings.video_channel_id) {
+      const videoChannel = await fetchTextChannel(client, communitySettings.video_channel_id);
+      if (videoChannel) {
+        await upsertPanel(
+          videoChannel,
+          PANEL_MARKERS.video,
+          buildVideoGuidePanel(),
+          client.user.id
+        );
+      }
     }
   }
 

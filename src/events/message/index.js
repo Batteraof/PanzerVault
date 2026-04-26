@@ -1,5 +1,6 @@
 const xpService = require('../../modules/leveling/services/xpService');
 const softModerationService = require('../../modules/community/services/softModerationService');
+const mediaIntakeService = require('../../modules/media/services/mediaIntakeService');
 const logger = require('../../logger');
 
 async function handleMessageCreate(message) {
@@ -8,12 +9,26 @@ async function handleMessageCreate(message) {
     return;
   }
 
+  let blocked = false;
+
   try {
     const moderation = await softModerationService.processMessage(message);
-    if (moderation.blocked) {
-      return;
-    }
+    blocked = Boolean(moderation?.blocked);
+  } catch (error) {
+    logger.warn('Failed to process soft moderation', error);
+  }
 
+  if (blocked) {
+    return;
+  }
+
+  try {
+    await mediaIntakeService.processMessage(message);
+  } catch (error) {
+    logger.warn('Failed to process media intake', error);
+  }
+
+  try {
     await xpService.awardTextXpFromMessage(message);
   } catch (error) {
     logger.warn('Failed to process text XP', error);

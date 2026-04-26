@@ -370,13 +370,21 @@ module.exports = {
     .addSubcommandGroup(group =>
       group
         .setName('community')
-        .setDescription('Configure spotlight, video, event, recap, and moderation systems.')
+        .setDescription('Configure media intake, spotlight, video, event, recap, and moderation systems.')
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('media-channel')
+              .setDescription('Set the shared channel where direct media uploads are watched.'),
+            'Shared media channel.'
+          )
+        )
         .addSubcommand(subcommand =>
           addChannelOption(
             subcommand
               .setName('video-channel')
-              .setDescription('Set the channel used for video submissions.'),
-            'Video channel.'
+              .setDescription('Set the optional archive channel used for video submissions.'),
+            'Optional video archive channel.'
           )
         )
         .addSubcommand(subcommand =>

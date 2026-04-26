@@ -11,6 +11,7 @@ async function ensureSettings(guildId, defaults = {}, client) {
       guild_id,
       onboarding_enabled,
       community_channel_id,
+      media_channel_id,
       video_enabled,
       video_channel_id,
       spotlight_enabled,
@@ -24,10 +25,11 @@ async function ensureSettings(guildId, defaults = {}, client) {
       moderation_log_channel_id,
       coach_role_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     ON CONFLICT (guild_id)
     DO UPDATE SET
       community_channel_id = COALESCE(guild_community_settings.community_channel_id, EXCLUDED.community_channel_id),
+      media_channel_id = COALESCE(guild_community_settings.media_channel_id, EXCLUDED.media_channel_id),
       video_channel_id = COALESCE(guild_community_settings.video_channel_id, EXCLUDED.video_channel_id),
       spotlight_channel_id = COALESCE(guild_community_settings.spotlight_channel_id, EXCLUDED.spotlight_channel_id),
       spotlight_role_id = COALESCE(guild_community_settings.spotlight_role_id, EXCLUDED.spotlight_role_id),
@@ -39,6 +41,7 @@ async function ensureSettings(guildId, defaults = {}, client) {
       guildId,
       defaults.onboardingEnabled ?? true,
       defaults.communityChannelId || null,
+      defaults.mediaChannelId || null,
       defaults.videoEnabled ?? true,
       defaults.videoChannelId || null,
       defaults.spotlightEnabled ?? true,
@@ -74,6 +77,7 @@ async function updateSettings(guildId, updates, client) {
   const allowed = [
     'onboarding_enabled',
     'community_channel_id',
+    'media_channel_id',
     'video_enabled',
     'video_channel_id',
     'spotlight_enabled',

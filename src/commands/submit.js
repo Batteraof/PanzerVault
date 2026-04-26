@@ -1,5 +1,6 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const submitEntryFlow = require('../modules/interactions/flows/submitEntryFlow');
+const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 
 function addAttachmentOptions(builder) {
@@ -40,7 +41,7 @@ module.exports = {
   data: addAttachmentOptions(
     new SlashCommandBuilder()
       .setName('submit')
-      .setDescription('Start a guided gallery or video submission flow.')
+      .setDescription('Get help with the media posting flow or use the fallback guided wizard.')
   ),
 
   async execute(interaction) {
@@ -52,7 +53,17 @@ module.exports = {
       return;
     }
 
-    await beginEphemeralReply(interaction, 'Opening the submit flow...');
+    await beginEphemeralReply(interaction, 'Checking the media flow for this server...');
+    const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+
+    if (communitySettings.media_channel_id) {
+      await interaction.editReply({
+        content: `Direct media uploads are live in <#${communitySettings.media_channel_id}>. Drop screenshots, art, uploaded videos, or YouTube links there and I will prompt you for a title, tags, and an optional description.`
+      });
+      return;
+    }
+
+    await interaction.editReply('Opening the legacy submit flow...');
     await submitEntryFlow.start(interaction);
   }
 };

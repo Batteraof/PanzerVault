@@ -5,6 +5,7 @@ function defaultsFromEnv() {
   return {
     onboardingEnabled: config.community.onboardingEnabled,
     communityChannelId: config.community.communityChannelId || null,
+    mediaChannelId: config.community.mediaChannelId || null,
     videoEnabled: config.community.videoEnabled,
     videoChannelId: config.community.videoChannelId || null,
     spotlightEnabled: config.community.spotlightEnabled,

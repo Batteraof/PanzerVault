@@ -17,5 +17,6 @@ module.exports = {
   GALLERY_WIZARD_POST: 'gallery_wizard:post',
   GALLERY_WIZARD_CANCEL: 'gallery_wizard:cancel',
   GALLERY_WIZARD_CLEAR_TAGS: 'gallery_wizard:clear_tags',
-  GALLERY_WIZARD_DETAILS_MODAL: 'gallery_wizard:details_modal'
+  GALLERY_WIZARD_DETAILS_MODAL: 'gallery_wizard:details_modal',
+  MEDIA_INTAKE_PREFIX: 'media_intake'
 };

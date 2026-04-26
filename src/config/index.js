@@ -117,6 +117,7 @@ const config = {
   community: {
     onboardingEnabled: boolFromEnv(process.env.ONBOARDING_ENABLED, true),
     communityChannelId: process.env.COMMUNITY_CHANNEL_ID || '',
+    mediaChannelId: process.env.MEDIA_CHANNEL_ID || '',
     videoEnabled: boolFromEnv(process.env.VIDEO_ENABLED, true),
     videoChannelId: process.env.VIDEO_CHANNEL_ID || '',
     spotlightEnabled: boolFromEnv(process.env.SPOTLIGHT_ENABLED, true),

@@ -274,6 +274,14 @@ async function handleCommunity(interaction) {
   const subcommand = interaction.options.getSubcommand();
   await communitySettingsService.ensureGuildSettings(interaction.guild.id);
 
+  if (subcommand === 'media-channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      media_channel_id: channel.id
+    });
+    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
+    return `Direct media uploads will now use ${channel}.`;
+  }
   if (subcommand === 'video-channel') {
     const channel = interaction.options.getChannel('channel', true);
     await communitySettingsService.updateSettings(interaction.guild.id, {
