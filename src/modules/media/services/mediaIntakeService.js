@@ -15,10 +15,17 @@ const customIds = require('../../../lib/customIds');
 const logger = require('../../../logger');
 
 const MEDIA_KIND_LABELS = {
-  image: 'Screenshots / Art',
+  image: 'Screenshot / Artwork',
   video_attachment: 'Uploaded Video',
-  video_link: 'YouTube Link',
+  video_link: 'YouTube Video',
   mixed: 'Mixed Media'
+};
+
+const MEDIA_KIND_COLORS = {
+  image: 0xf0b232,
+  video_attachment: 0xe74c3c,
+  video_link: 0xc0392b,
+  mixed: 0x5865f2
 };
 
 function buildCustomId(action, submissionId) {
@@ -172,32 +179,56 @@ function collectPublishedLinks(sourcePayload = {}) {
   };
 }
 
+function buildSupportingLinkLines(links) {
+  const lines = [];
+
+  links.youtubeLinks.forEach((url, index) => {
+    lines.push(`[Watch video ${index + 1}](${url})`);
+  });
+
+  links.videoLinks.forEach((url, index) => {
+    lines.push(`[Open uploaded clip ${index + 1}](${url})`);
+  });
+
+  links.extraImageLinks.forEach((url, index) => {
+    lines.push(`[Open extra image ${index + 1}](${url})`);
+  });
+
+  return lines;
+}
+
 function buildCompletedPayload(submission, tags) {
   const sourcePayload = submission.source_payload || {};
   const links = collectPublishedLinks(sourcePayload);
+  const mediaKind = submission.media_kind || "mixed";
+  const supportingLinkLines = buildSupportingLinkLines(links);
   const embed = new EmbedBuilder()
-    .setColor(0x57f287)
-    .setTitle(submission.title || 'Untitled media post')
-    .setDescription(submission.description || 'No description provided.')
+    .setColor(MEDIA_KIND_COLORS[mediaKind] || MEDIA_KIND_COLORS.mixed)
+    .setTitle(submission.title || "Untitled media post")
+    .setAuthor({ name: "Community Showcase" })
     .addFields(
       {
-        name: 'Type',
-        value: MEDIA_KIND_LABELS[submission.media_kind] || 'Media',
-        inline: true
-      },
-      {
-        name: 'Submitted by',
+        name: "Shared by",
         value: `<@${submission.user_id}>`,
         inline: true
       },
       {
-        name: 'Tags',
+        name: "Format",
+        value: MEDIA_KIND_LABELS[mediaKind] || "Media",
+        inline: true
+      },
+      {
+        name: "Tags",
         value: mediaTagService.formatTagList(tags),
         inline: false
       }
     )
-    .setFooter({ text: `Media post #${submission.id}` })
+    .setFooter({ text: "General Bot Curated Showcase" })
     .setTimestamp(new Date(submission.updated_at || submission.created_at));
+
+  if (submission.description) {
+    embed.setDescription(submission.description);
+  }
 
   if (links.primaryImage?.url) {
     embed.setImage(links.primaryImage.url);
@@ -207,25 +238,16 @@ function buildCompletedPayload(submission, tags) {
     embed.setURL(links.youtubeLinks[0]);
   }
 
-  const supportingLinks = [
-    ...links.videoLinks,
-    ...links.youtubeLinks,
-    ...links.extraImageLinks
-  ];
-
-  if (supportingLinks.length) {
+  if (supportingLinkLines.length) {
     embed.addFields({
-      name: 'Media links',
-      value: supportingLinks
-        .map((url, index) => `[Open media ${index + 1}](${url})`)
-        .join(`\n`)
-        .slice(0, 1024),
+      name: "Open media",
+      value: supportingLinkLines.join(`\n`).slice(0, 1024),
       inline: false
     });
   }
 
   return {
-    content: supportingLinks.join(`\n`) || null,
+    content: null,
     embeds: [embed],
     components: [],
     allowedMentions: { parse: [] }
