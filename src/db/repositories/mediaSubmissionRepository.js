@@ -137,7 +137,7 @@ async function markRemovedBySourceMessage(guildId, sourceMessageId, client) {
     SET status = 'removed', updated_at = now()
     WHERE guild_id = $1
       AND source_message_id = $2
-      AND status <> 'removed'
+      AND status IN ('pending', 'dismissed')
     RETURNING *
     `,
     [guildId, sourceMessageId]
@@ -145,7 +145,6 @@ async function markRemovedBySourceMessage(guildId, sourceMessageId, client) {
 
   return result.rows[0] || null;
 }
-
 async function replaceTags(submissionId, tagIds, client) {
   await executor(client).query(
     `

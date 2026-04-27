@@ -60,7 +60,8 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v']);
 
 function attachmentExtension(attachment) {
-  return extname(String(attachment?.name || '')).toLowerCase();
+  const rawName = attachment?.name || attachment?.filename || attachment?.url || '';
+  return extname(String(rawName)).toLowerCase();
 }
 
 function isImageAttachment(attachment) {
@@ -149,9 +150,31 @@ function buildPromptPayload(submission) {
   };
 }
 
+function collectPublishedLinks(sourcePayload = {}) {
+  const attachments = Array.isArray(sourcePayload.attachments) ? sourcePayload.attachments : [];
+  const youtubeLinks = Array.isArray(sourcePayload.youtubeLinks) ? sourcePayload.youtubeLinks : [];
+  const imageAttachments = attachments.filter(isImageAttachment);
+  const videoAttachments = attachments.filter(isVideoAttachment);
+  const primaryImage = imageAttachments[0] || null;
+  const extraImageLinks = imageAttachments
+    .slice(primaryImage ? 1 : 0)
+    .map(attachment => attachment.url)
+    .filter(Boolean);
+  const videoLinks = videoAttachments
+    .map(attachment => attachment.url)
+    .filter(Boolean);
+
+  return {
+    primaryImage,
+    extraImageLinks,
+    videoLinks,
+    youtubeLinks: youtubeLinks.filter(Boolean)
+  };
+}
+
 function buildCompletedPayload(submission, tags) {
   const sourcePayload = submission.source_payload || {};
-  const firstYoutubeLink = (sourcePayload.youtubeLinks || [])[0] || null;
+  const links = collectPublishedLinks(sourcePayload);
   const embed = new EmbedBuilder()
     .setColor(0x57f287)
     .setTitle(submission.title || 'Untitled media post')
@@ -176,18 +199,38 @@ function buildCompletedPayload(submission, tags) {
     .setFooter({ text: `Media post #${submission.id}` })
     .setTimestamp(new Date(submission.updated_at || submission.created_at));
 
-  if (firstYoutubeLink) {
-    embed.setURL(firstYoutubeLink);
+  if (links.primaryImage?.url) {
+    embed.setImage(links.primaryImage.url);
+  }
+
+  if (links.youtubeLinks[0]) {
+    embed.setURL(links.youtubeLinks[0]);
+  }
+
+  const supportingLinks = [
+    ...links.videoLinks,
+    ...links.youtubeLinks,
+    ...links.extraImageLinks
+  ];
+
+  if (supportingLinks.length) {
+    embed.addFields({
+      name: 'Media links',
+      value: supportingLinks
+        .map((url, index) => `[Open media ${index + 1}](${url})`)
+        .join(`\n`)
+        .slice(0, 1024),
+      inline: false
+    });
   }
 
   return {
-    content: 'Media details saved.',
+    content: supportingLinks.join(`\n`) || null,
     embeds: [embed],
     components: [],
     allowedMentions: { parse: [] }
   };
 }
-
 function buildDismissedPayload() {
   return {
     content: 'Media details skipped for this post.',
@@ -211,18 +254,22 @@ async function updateBotMessage(client, submission, payload) {
   });
 }
 
-async function deleteBotMessage(client, submission) {
-  if (!submission.bot_message_id) return;
+async function deleteMessageById(client, channelId, messageId) {
+  if (!messageId) return;
 
-  const channel = await client.channels.fetch(submission.channel_id).catch(() => null);
+  const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
 
-  const message = await channel.messages.fetch(submission.bot_message_id).catch(() => null);
+  const message = await channel.messages.fetch(messageId).catch(() => null);
   if (!message) return;
 
   await message.delete().catch(() => null);
 }
 
+async function deleteBotMessage(client, submission) {
+  if (!submission.bot_message_id) return;
+  await deleteMessageById(client, submission.channel_id, submission.bot_message_id);
+}
 async function processMessage(message) {
   if (!message.guild || !message.channel || message.author?.bot) return false;
 
@@ -299,10 +346,33 @@ async function completeSubmission(client, submissionId, userId, data) {
     };
   });
 
-  await updateBotMessage(client, result.submission, buildCompletedPayload(result.submission, result.tags));
-  return result;
-}
+  const promptMessageId = result.submission.bot_message_id;
+  const channel = await client.channels.fetch(result.submission.channel_id).catch(() => null);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error('I could not publish the finished media post because the media channel is unavailable.');
+  }
 
+  const publishedMessage = await channel.send(buildCompletedPayload(result.submission, result.tags));
+  await mediaSubmissionRepository.updateBotMessageId(result.submission.id, publishedMessage.id).catch(error => {
+    logger.warn('Failed to store final media message id', error);
+  });
+
+  const sourceMessage = await channel.messages.fetch(result.submission.source_message_id).catch(() => null);
+  if (sourceMessage) {
+    await sourceMessage.delete().catch(error => {
+      logger.warn('Failed to delete original media post after publishing final version', error);
+    });
+  }
+
+  if (promptMessageId) {
+    await deleteMessageById(client, result.submission.channel_id, promptMessageId);
+  }
+
+  return {
+    ...result,
+    publishedMessageId: publishedMessage.id
+  };
+}
 async function dismissSubmission(client, submissionId) {
   const submission = await mediaSubmissionRepository.markDismissed(submissionId);
   if (!submission) return null;
