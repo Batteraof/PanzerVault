@@ -57,13 +57,14 @@ BEGIN
       AND table_name = 'event_attendance'
       AND column_name = 'marked_by'
   ) THEN
-    EXECUTE '
+    EXECUTE $sql$
       UPDATE event_attendance
       SET source = CASE
-        WHEN marked_by IS NOT NULL AND (source IS NULL OR source = '''''') THEN ''staff''
-        WHEN source IS NULL OR source = '''''' THEN ''button''
+        WHEN marked_by IS NOT NULL AND (source IS NULL OR source = '') THEN 'staff'
+        WHEN source IS NULL OR source = '' THEN 'button'
         ELSE source
-      END';
+      END
+    $sql$;
   END IF;
 
   IF EXISTS (
@@ -73,12 +74,12 @@ BEGIN
       AND table_name = 'event_attendance'
       AND column_name = 'attended_at'
   ) THEN
-    EXECUTE '
+    EXECUTE $sql$
       UPDATE event_attendance
-      SET checked_in_at = COALESCE(attended_at, checked_in_at, now())';
+      SET checked_in_at = COALESCE(attended_at, checked_in_at, now())
+    $sql$;
   END IF;
 END $$;
-
 UPDATE event_attendance
 SET source = COALESCE(NULLIF(source, ''), 'button'),
     duration_seconds = COALESCE(duration_seconds, 0),
