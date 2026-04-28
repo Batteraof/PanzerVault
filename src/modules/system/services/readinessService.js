@@ -180,6 +180,21 @@ function buildRulesSection(botSettings, metadata) {
 }
 
 function buildOnboardingSection(communitySettings, skillRoles, regionRoles, metadata) {
+  if (communitySettings?.onboarding_enabled === false) {
+    return buildSection('onboarding', 'Discord Onboarding Handoff', [
+      makeItem('ok', 'Preference roles', 'Discord Onboarding should assign platform, region, skill, and channel roles.'),
+      roleItem(
+        metadata,
+        communitySettings?.coach_role_id,
+        'Coach role',
+        {
+          missingStatus: 'warn',
+          missingMessage: 'Optional. Configure this if Medium and Expert members should opt into being helper contacts.'
+        }
+      )
+    ], 'Basic onboarding roles are handled by Discord; bot automation stays focused on progression and operations.');
+  }
+
   const skillConfigured = onboardingRoleService.SKILL_OPTIONS.filter(option => {
     const roleId = skillRoles[option.key];
     return roleId && hasRole(metadata, roleId);

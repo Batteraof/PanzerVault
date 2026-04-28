@@ -621,7 +621,7 @@ function renderCommunitySettings() {
       <section class="settings-section">
         <h3>Feature toggles</h3>
         <div class="toggle-grid">
-          ${renderToggleControl('onboardingEnabled', 'Onboarding flow', 'Keep rules verification and onboarding prompts active.', community.onboarding_enabled !== false)}
+          ${renderToggleControl('onboardingEnabled', 'Bot role onboarding', 'Use the bot role panel for skill and region roles. Turn this off when Discord Onboarding assigns those roles.', community.onboarding_enabled !== false)}
           ${renderToggleControl('eventEnabled', 'Events', 'Allow RSVP events and reminders to run.', community.event_enabled !== false)}
           ${renderToggleControl('videoEnabled', 'Video submissions', 'Accept curated YouTube posts through /submit.', community.video_enabled !== false)}
           ${renderToggleControl('spotlightEnabled', 'Community spotlight', 'Keep spotlight nominations and monthly rotation active.', community.spotlight_enabled !== false)}
@@ -908,10 +908,10 @@ function renderOnboardingSettings() {
   const metadata = getMetadata();
 
   html('#onboarding-settings', `
-    <div class="panel-note">These mappings drive the join flow right after rules acceptance. Skill roles are required; region roles and coach role can stay empty until the server owner finalizes them.</div>
+    <div class="panel-note">Use Discord Onboarding for platform, region, skill, and channel role choices when possible. These mappings are only used by the bot's fallback role panel; the coach role can still be used when Discord assigns the Medium and Expert roles.</div>
     <form id="onboarding-settings-form" class="form-stack">
       <section class="settings-section">
-        <h3>Skill roles</h3>
+        <h3>Fallback skill roles</h3>
         <div class="form-grid">
           ${SKILL_OPTIONS.map(([key, label]) => `
             <label class="field">
@@ -919,7 +919,7 @@ function renderOnboardingSettings() {
               <select name="skill-${escapeHtml(key)}" required>
                 ${selectOptions(metadata.roles, onboarding.skillRoles?.[key], `Choose the ${label.toLowerCase()} role`)}
               </select>
-              <small>Members choose one of these during onboarding.</small>
+              <small>Only used when bot role onboarding is enabled.</small>
             </label>
           `).join('')}
         </div>
@@ -931,13 +931,13 @@ function renderOnboardingSettings() {
           <label class="field field-span-2">
             <span>Coach role</span>
             <select name="coachRoleId">${selectOptions(metadata.roles, community.coach_role_id, 'Choose the coach / teacher role')}</select>
-            <small>Medium and Expert members can opt into this so Beginners know who they can ping for help.</small>
+            <small>Medium and Expert members can opt into this so Beginners know who they can ask for help.</small>
           </label>
         </div>
       </section>
 
       <section class="settings-section">
-        <h3>Region roles</h3>
+        <h3>Fallback region roles</h3>
         <div class="form-grid regions-grid">
           ${REGION_OPTIONS.map(([key, label]) => `
             <label class="field">
@@ -945,7 +945,7 @@ function renderOnboardingSettings() {
               <select name="region-${escapeHtml(key)}">
                 ${selectOptions(metadata.roles, onboarding.regionRoles?.[key], `Optional ${label} role`)}
               </select>
-              <small>Leave blank until the server owner is ready for this region role.</small>
+              <small>Only used when bot role onboarding is enabled.</small>
             </label>
           `).join('')}
         </div>
@@ -954,7 +954,7 @@ function renderOnboardingSettings() {
       ${renderStatusMessage(uiState.onboardingMessage, uiState.onboardingTone)}
 
       <div class="action-row">
-        <button class="button-primary" type="submit">Save Onboarding Roles</button>
+        <button class="button-primary" type="submit">Save Role Settings</button>
       </div>
     </form>
   `);

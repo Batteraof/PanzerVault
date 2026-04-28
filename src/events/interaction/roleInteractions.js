@@ -47,6 +47,13 @@ async function respondEphemeral(interaction, payload) {
 async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
   const member = interaction.member;
   const botMember = interaction.guild.members.me;
+  const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+
+  if (communitySettings.onboarding_enabled === false) {
+    await respondEphemeral(interaction, 'Discord Onboarding handles those roles now. Use Channels & Roles to update your platform, region, skill, or channel choices.');
+    return true;
+  }
+
   const roles = await onboardingRoleService.listRolesByGroup(interaction.guild.id, groupKey);
   const selected = roles.find(role => role.option_key === selectedValue);
 
@@ -85,7 +92,6 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
 
   await member.roles.add(selectedRole);
 
-  const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
   let followUp = `Done. You now have ${selectedRole}.`;
 
   if (groupKey === 'skill' && selected.option_key === 'beginner' && communitySettings.coach_role_id) {
@@ -164,9 +170,11 @@ async function handleRoleButton(interaction) {
   if (interaction.customId === customIds.ROLES_MENU) {
     const data = await buildRolePanelData(interaction.guild.id);
     const components = await buildRolePanelComponents(interaction.guild.id);
+    const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
+    const title = botOnboardingEnabled ? 'Select your onboarding roles below' : 'Role setup';
 
     return respondEphemeral(interaction, {
-      content: `**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`,
+      content: `**${title}:**\n${buildRolePanelContent(data)}`,
       components
     });
   }
@@ -199,8 +207,12 @@ async function handleRoleButton(interaction) {
 
     const data = await buildRolePanelData(interaction.guild.id);
     const components = await buildRolePanelComponents(interaction.guild.id);
+    const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
+    const followUp = botOnboardingEnabled
+      ? `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`
+      : `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Role setup:**\n${buildRolePanelContent(data)}`;
     return respondEphemeral(interaction, {
-      content: `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`,
+      content: followUp,
       components
     });
   }
