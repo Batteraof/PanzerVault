@@ -1,0 +1,17 @@
+[Unit]
+Description=PanzerVault Dashboard
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/discord-leveling-bot
+EnvironmentFile=/opt/discord-leveling-bot/.env
+ExecStart=/usr/bin/node /opt/discord-leveling-bot/src/dashboard/server.js
+Restart=always
+RestartSec=10
+User=discordbot
+Group=discordbot
+
+[Install]
+WantedBy=multi-user.target

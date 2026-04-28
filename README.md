@@ -62,6 +62,42 @@ npm run commands:register
 npm start
 ```
 
+7. Start the dashboard in a second process:
+
+```bash
+npm run dashboard
+```
+
+By default the dashboard is available at `http://localhost:3000`. Set `DASHBOARD_PORT` in `.env` if you need another port.
+
+## Dashboard Hosting
+
+The dashboard is a separate web server from the Discord bot. Starting only `npm start`, `node src/index.js`, the Dockerfile, or the current `discord-bot` systemd service will run the bot but will not put the dashboard online.
+
+On the machine that hosts the bot, run:
+
+```bash
+npm run dashboard
+```
+
+For PM2:
+
+```bash
+pm2 start src/dashboard/server.js --name panzervault-dashboard
+pm2 save
+```
+
+For systemd, copy `docs/dashboard.service.example` to `/etc/systemd/system/panzervault-dashboard.service`, adjust the path/user if needed, then run:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable panzervault-dashboard
+sudo systemctl start panzervault-dashboard
+sudo systemctl status panzervault-dashboard --no-pager
+```
+
+If the server is remote, open/firewall the chosen `DASHBOARD_PORT` and visit `http://SERVER_IP:DASHBOARD_PORT`, or put a reverse proxy in front of it for HTTPS.
+
 ## Laptop Hosting
 
 This repo is tuned for a small always-on laptop by default:
