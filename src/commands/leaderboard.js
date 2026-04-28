@@ -1,4 +1,4 @@
-const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags, SlashCommandBuilder } = require('discord.js');
 const userRepository = require('../db/repositories/userRepository');
 const { progressWithinLevel } = require('../modules/leveling/utils/xpFormula');
 
@@ -33,15 +33,17 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Leaderboard can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
+
+    await interaction.deferReply();
 
     const limit = interaction.options.getInteger('limit') || 10;
     const rows = await userRepository.getLeaderboard(interaction.guild.id, limit, 0);
     const embed = buildLeaderboardEmbed(interaction.guild, rows);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   }
 };

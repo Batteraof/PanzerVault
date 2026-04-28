@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const galleryService = require('../modules/gallery/services/galleryService');
 const { CATEGORIES } = require('../modules/gallery/constants/galleryConfig');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
@@ -33,7 +33,7 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Tags can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }

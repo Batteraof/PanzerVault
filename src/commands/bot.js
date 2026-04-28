@@ -38,7 +38,7 @@ module.exports = {
         },
         {
           name: 'Staff Commands',
-          value: '`/config`\n`/gallery`\n`/event`\n`/rank-reset`\n`/spotlight-manage`\n`/ticket-manage`',
+          value: '`/dashboard`\n`/config`\n`/gallery`\n`/event`\n`/rank-reset`\n`/spotlight-manage`\n`/ticket-manage`',
           inline: true
         },
         {

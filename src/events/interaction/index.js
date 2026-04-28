@@ -6,6 +6,7 @@ const galleryCommand = require('../../commands/gallery');
 const submitCommand = require('../../commands/submit');
 const tagsCommand = require('../../commands/tags');
 const configCommand = require('../../commands/config');
+const dashboardCommand = require('../../commands/dashboard');
 const leaderboardCommand = require('../../commands/leaderboard');
 const profileCommand = require('../../commands/profile');
 const ticketCommand = require('../../commands/ticket');
@@ -28,6 +29,7 @@ const slashCommands = new Map([
   [tagsCommand.data.name, tagsCommand],
   [galleryCommand.data.name, galleryCommand],
   [configCommand.data.name, configCommand],
+  [dashboardCommand.data.name, dashboardCommand],
   [leaderboardCommand.data.name, leaderboardCommand],
   [profileCommand.data.name, profileCommand],
   [ticketCommand.data.name, ticketCommand],

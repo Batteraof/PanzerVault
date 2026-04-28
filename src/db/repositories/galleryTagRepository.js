@@ -18,7 +18,7 @@ async function upsertTag(guildId, tagName, normalizedName, allowedCategories = n
     ON CONFLICT (guild_id, normalized_name)
     DO UPDATE SET
       tag_name = EXCLUDED.tag_name,
-      allowed_categories = COALESCE(gallery_tags.allowed_categories, EXCLUDED.allowed_categories),
+      allowed_categories = EXCLUDED.allowed_categories,
       is_active = true
     RETURNING *
     `,

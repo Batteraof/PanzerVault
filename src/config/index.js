@@ -114,6 +114,9 @@ const config = {
     contactText: process.env.BOT_CONTACT_TEXT || '',
     supportChannelId: process.env.BOT_SUPPORT_CHANNEL_ID || ''
   },
+  dashboard: {
+    url: process.env.DASHBOARD_URL || ''
+  },
   community: {
     onboardingEnabled: boolFromEnv(process.env.ONBOARDING_ENABLED, true),
     communityChannelId: process.env.COMMUNITY_CHANNEL_ID || '',

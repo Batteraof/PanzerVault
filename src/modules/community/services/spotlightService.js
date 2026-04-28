@@ -2,7 +2,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
+  EmbedBuilder,
+  MessageFlags
 } = require('discord.js');
 const spotlightRepository = require('../../../db/repositories/spotlightRepository');
 const communitySettingsService = require('../../config/services/communitySettingsService');
@@ -42,10 +43,15 @@ function parseVoteCustomId(customId) {
   };
 }
 
+function cycleDate(cycle, snakeKey, camelKey) {
+  return new Date(cycle[snakeKey] || cycle[camelKey]).getTime();
+}
+
 function cyclePhase(cycle, now = new Date()) {
   const current = now.getTime();
-  if (current < new Date(cycle.voting_starts_at).getTime()) return 'nominations';
-  if (current < new Date(cycle.announcement_at).getTime()) return 'voting';
+  if (current < cycleDate(cycle, 'voting_starts_at', 'votingStartsAt')) return 'nominations';
+  if (current <= cycleDate(cycle, 'voting_ends_at', 'votingEndsAt')) return 'voting';
+  if (current < cycleDate(cycle, 'announcement_at', 'announcementAt')) return 'voting_closed';
   return 'announcement';
 }
 
@@ -342,30 +348,31 @@ async function handleVote(interaction) {
   const parsed = parseVoteCustomId(interaction.customId);
   if (!parsed) return false;
 
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const cycle = await spotlightRepository.getCycleById(parsed.cycleId);
   if (!cycle) {
-    await interaction.reply({ content: 'That spotlight vote is no longer active.', ephemeral: true }).catch(() => null);
+    await interaction.editReply('That spotlight vote is no longer active.').catch(() => null);
     return true;
   }
 
   if (cyclePhase(cycle) !== 'voting') {
-    await interaction.reply({ content: 'Spotlight voting is closed right now.', ephemeral: true }).catch(() => null);
+    await interaction.editReply('Spotlight voting is closed right now.').catch(() => null);
     return true;
   }
 
   const finalists = await finalistsForCycle(interaction.guild.id, cycle);
   const finalistIds = new Set(finalists.map(row => row.nominee_user_id));
   if (!finalistIds.has(parsed.nomineeUserId)) {
-    await interaction.reply({ content: 'That nominee is no longer in the final vote.', ephemeral: true }).catch(() => null);
+    await interaction.editReply('That nominee is no longer in the final vote.').catch(() => null);
     return true;
   }
 
   await spotlightRepository.upsertVote(cycle.id, interaction.guild.id, interaction.user.id, parsed.nomineeUserId);
-  await refreshVotingMessage(interaction.client, interaction.guild.id, cycle);
-  await interaction.reply({
-    content: `Vote saved for <@${parsed.nomineeUserId}>.`,
-    ephemeral: true
-  }).catch(() => null);
+  await interaction.editReply(`Vote saved for <@${parsed.nomineeUserId}>.`).catch(() => null);
+  await refreshVotingMessage(interaction.client, interaction.guild.id, cycle).catch(error => {
+    logger.warn('Failed to refresh spotlight voting message', error);
+  });
   return true;
 }
 

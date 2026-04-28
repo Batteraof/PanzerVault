@@ -1,4 +1,4 @@
-const { PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const galleryModerationService = require('../modules/gallery/services/galleryModerationService');
 const { GalleryUserError } = require('../modules/gallery/utils/galleryErrors');
 const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
@@ -84,7 +84,7 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Gallery moderation can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -147,7 +147,7 @@ module.exports = {
 
     await interaction.reply({
       content: 'That gallery command is no longer active. Refresh Discord and try again.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
   }
 };

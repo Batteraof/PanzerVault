@@ -16,7 +16,11 @@ function toLookup(items = []) {
 }
 
 function normalizeMetadata(metadata = {}) {
-  const channels = metadata.channels instanceof Map ? metadata.channels : toLookup(metadata.channels);
+  const channelItems = [
+    ...(metadata.channels || []),
+    ...(metadata.categories || [])
+  ];
+  const channels = metadata.channels instanceof Map ? metadata.channels : toLookup(channelItems);
   const roles = metadata.roles instanceof Map ? metadata.roles : toLookup(metadata.roles);
 
   return { channels, roles };

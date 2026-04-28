@@ -5,6 +5,7 @@ const {
   ButtonStyle,
   EmbedBuilder,
   InteractionWebhook,
+  MessageFlags,
   ModalBuilder,
   StringSelectMenuBuilder,
   TextInputBuilder,
@@ -378,10 +379,10 @@ async function resolveDraft(interaction, parsed) {
 
     if (typeof interaction.update === 'function') {
       await interaction.update(expiredPayload).catch(async () => {
-        await interaction.reply({ content: expiredPayload.content, ephemeral: true }).catch(() => null);
+        await interaction.reply({ content: expiredPayload.content, flags: MessageFlags.Ephemeral }).catch(() => null);
       });
     } else {
-      await interaction.reply({ content: expiredPayload.content, ephemeral: true }).catch(() => null);
+      await interaction.reply({ content: expiredPayload.content, flags: MessageFlags.Ephemeral }).catch(() => null);
     }
 
     return null;
@@ -390,7 +391,7 @@ async function resolveDraft(interaction, parsed) {
   if (draft.userId !== interaction.user.id || draft.guildId !== interaction.guildId) {
     await interaction.reply({
       content: 'That draft belongs to someone else.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => null);
     return null;
   }
@@ -406,7 +407,7 @@ async function handleCategory(interaction, draft, category) {
   if (!availability[category]) {
     await interaction.reply({
       content: 'That gallery category is not configured yet.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => null);
     return true;
   }
@@ -421,7 +422,7 @@ async function handleTags(interaction, draft) {
   if (!draft.category) {
     await interaction.reply({
       content: 'Pick a category first so I can load the right approved tags.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => null);
     return true;
   }
@@ -457,7 +458,7 @@ async function handleDetailsModal(interaction, draft) {
     if (error instanceof GalleryUserError || error.isGalleryUserError) {
       await interaction.reply({
         content: error.message,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       }).catch(() => null);
       return true;
     }
@@ -472,7 +473,7 @@ async function handleDetailsModal(interaction, draft) {
   } else {
     await interaction.reply({
       content: 'Details saved.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => null);
     await editOriginalDraftMessage(interaction.client, draft, payload);
   }
@@ -497,7 +498,7 @@ async function handlePost(interaction, draft) {
   if (!draft.category) {
     await interaction.reply({
       content: 'Choose a category before posting.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     }).catch(() => null);
     return true;
   }
@@ -631,7 +632,7 @@ async function handleInteraction(interaction) {
     default:
       await interaction.reply({
         content: 'That gallery action is no longer active. Please run `/submit` again.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       }).catch(() => null);
       return true;
   }

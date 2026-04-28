@@ -10,6 +10,7 @@ const galleryCommand = require('./gallery');
 const submitCommand = require('./submit');
 const tagsCommand = require('./tags');
 const configCommand = require('./config');
+const dashboardCommand = require('./dashboard');
 const leaderboardCommand = require('./leaderboard');
 const profileCommand = require('./profile');
 const ticketCommand = require('./ticket');
@@ -32,6 +33,7 @@ async function registerCommands() {
     tagsCommand.data.toJSON(),
     galleryCommand.data.toJSON(),
     configCommand.data.toJSON(),
+    dashboardCommand.data.toJSON(),
     leaderboardCommand.data.toJSON(),
     profileCommand.data.toJSON(),
     ticketCommand.data.toJSON(),

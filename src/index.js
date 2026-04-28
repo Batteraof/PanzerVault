@@ -1,5 +1,6 @@
 const {
   Client,
+  Events,
   GatewayIntentBits
 } = require('discord.js');
 const config = require('./config');
@@ -26,7 +27,7 @@ const client = new Client({
   ]
 });
 
-client.once('ready', () => {
+client.once(Events.ClientReady, () => {
   handleReady(client).catch(error => {
     logger.error('Ready handler failed', error);
   });

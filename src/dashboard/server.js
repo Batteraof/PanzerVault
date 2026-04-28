@@ -4,19 +4,26 @@ const path = require('node:path');
 const express = require('express');
 const db = require('../db/client');
 const eventRepository = require('../db/repositories/eventRepository');
+const botSettingsRepository = require('../db/repositories/botSettingsRepository');
 const guildSettingsRepository = require('../db/repositories/guildSettingsRepository');
+const gallerySettingsRepository = require('../db/repositories/gallerySettingsRepository');
 const logger = require('../logger');
 const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
 const gallerySettingsService = require('../modules/gallery/services/gallerySettingsService');
+const galleryTagService = require('../modules/gallery/services/galleryTagService');
 const ticketSettingsService = require('../modules/tickets/services/ticketSettingsService');
+const rewardRoleService = require('../modules/rewards/services/rewardRoleService');
 const readinessService = require('../modules/system/services/readinessService');
 const eventService = require('../modules/community/services/eventService');
 const { parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
 
 const app = express();
 const port = Number(process.env.DASHBOARD_PORT || 3000);
+const host = process.env.DASHBOARD_HOST || '127.0.0.1';
+const dashboardUsername = process.env.DASHBOARD_USERNAME || 'admin';
+const dashboardPassword = process.env.DASHBOARD_PASSWORD || '';
 const publicDir = path.join(__dirname, 'public');
 const discordApiBase = 'https://discord.com/api/v10';
 const memberCache = new Map();
@@ -26,10 +33,60 @@ const GUILD_METADATA_TTL_MS = 5 * 60 * 1000;
 const MAX_MEMBER_LOOKUPS_PER_REQUEST = 24;
 
 app.disable('x-powered-by');
+app.use(requireDashboardAuth);
 app.use(express.json({ limit: '128kb' }));
 app.use(express.static(publicDir, {
   maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
 }));
+
+function normalizeIp(ip = '') {
+  return String(ip).replace(/^::ffff:/, '');
+}
+
+function isLoopbackRequest(req) {
+  const remoteAddress = normalizeIp(req.ip || req.socket?.remoteAddress || '');
+  return remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === 'localhost';
+}
+
+function parseBasicAuth(header = '') {
+  if (!header.startsWith('Basic ')) return null;
+
+  try {
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+    const separator = decoded.indexOf(':');
+    if (separator === -1) return null;
+    return {
+      username: decoded.slice(0, separator),
+      password: decoded.slice(separator + 1)
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function requireDashboardAuth(req, res, next) {
+  if (!dashboardPassword) {
+    if (isLoopbackRequest(req)) {
+      return next();
+    }
+
+    return res
+      .status(403)
+      .send('Dashboard access is restricted to localhost until DASHBOARD_PASSWORD is set.');
+  }
+
+  const credentials = parseBasicAuth(req.headers.authorization || '');
+  if (
+    credentials &&
+    credentials.username === dashboardUsername &&
+    credentials.password === dashboardPassword
+  ) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="General Bot Dashboard", charset="UTF-8"');
+  return res.status(401).send('Authentication required.');
+}
 
 function resolveGuildId(req) {
   return req.query.guildId || process.env.GUILD_ID;
@@ -182,6 +239,7 @@ function decorateRowsWithProfiles(rows, profileMap, userField = 'user_id') {
 function emptyGuildMetadata(error = null) {
   return {
     channels: [],
+    categories: [],
     roles: [],
     error
   };
@@ -208,6 +266,16 @@ async function fetchGuildMetadata(guildId) {
         .filter(channel => channel.type === 4)
         .map(channel => [channel.id, channel])
     );
+
+    const categories = [...categoryMap.values()]
+      .map(channel => ({
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
+        position: channel.position || 0,
+        label: channel.name
+      }))
+      .sort((left, right) => left.position - right.position || left.label.localeCompare(right.label));
 
     const channels = channelsRaw
       .filter(channel => channel.type === 0 || channel.type === 5)
@@ -239,7 +307,7 @@ async function fetchGuildMetadata(guildId) {
         position: role.position
       }));
 
-    const value = { channels, roles, error: null };
+    const value = { channels, categories, roles, error: null };
     guildMetadataCache.set(guildId, {
       expiresAt: Date.now() + GUILD_METADATA_TTL_MS,
       value
@@ -275,6 +343,73 @@ function toOptionalBoolean(value) {
   return typeof value === 'boolean' ? value : undefined;
 }
 
+function parseRequiredLevel(value) {
+  const level = Number(value);
+  if (!Number.isInteger(level) || level < 1 || level > 500) {
+    throw badRequest('Reward level must be a whole number between 1 and 500.');
+  }
+  return level;
+}
+
+function buildBotUpdates(body = {}) {
+  const updates = {};
+  const flagKeys = {
+    welcomeEnabled: 'welcome_enabled',
+    rulesEnabled: 'rules_enabled'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(flagKeys)) {
+    const value = toOptionalBoolean(body[inputKey]);
+    if (value !== undefined) {
+      updates[dbKey] = value;
+    }
+  }
+
+  const idKeys = {
+    welcomeChannelId: 'welcome_channel_id',
+    rulesChannelId: 'rules_channel_id',
+    rulesVerifiedRoleId: 'rules_verified_role_id'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(idKeys)) {
+    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
+      updates[dbKey] = asNullableId(body[inputKey]);
+    }
+  }
+
+  return updates;
+}
+
+function buildLevelingUpdates(body = {}) {
+  const updates = {};
+  const flagKeys = {
+    levelingEnabled: 'leveling_enabled',
+    textXpEnabled: 'text_xp_enabled',
+    voiceXpEnabled: 'voice_xp_enabled',
+    dmLevelupEnabled: 'dm_levelup_enabled'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(flagKeys)) {
+    const value = toOptionalBoolean(body[inputKey]);
+    if (value !== undefined) {
+      updates[dbKey] = value;
+    }
+  }
+
+  const idKeys = {
+    levelupChannelId: 'levelup_channel_id',
+    infoChannelId: 'info_channel_id'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(idKeys)) {
+    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
+      updates[dbKey] = asNullableId(body[inputKey]);
+    }
+  }
+
+  return updates;
+}
+
 function buildCommunityUpdates(body = {}) {
   const updates = {};
   const flagKeys = {
@@ -296,11 +431,72 @@ function buildCommunityUpdates(body = {}) {
 
   const idKeys = {
     communityChannelId: 'community_channel_id',
+    mediaChannelId: 'media_channel_id',
     videoChannelId: 'video_channel_id',
     spotlightChannelId: 'spotlight_channel_id',
     spotlightRoleId: 'spotlight_role_id',
     eventChannelId: 'event_channel_id',
     moderationLogChannelId: 'moderation_log_channel_id'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(idKeys)) {
+    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
+      updates[dbKey] = asNullableId(body[inputKey]);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'weeklyRecapNote')) {
+    const note = String(body.weeklyRecapNote || '').trim();
+    if (note.length > 300) {
+      throw badRequest('Weekly recap note must be 300 characters or less.');
+    }
+    updates.weekly_recap_note = note || null;
+  }
+
+  return updates;
+}
+
+function galleryCategoriesFromInput(value) {
+  if (!value || value === 'all') return null;
+  if (!['showcase', 'meme'].includes(value)) {
+    throw badRequest('Gallery tag category must be all, showcase, or meme.');
+  }
+  return [value];
+}
+
+function buildGalleryUpdates(body = {}) {
+  const updates = {};
+  const galleryEnabled = toOptionalBoolean(body.galleryEnabled);
+  if (galleryEnabled !== undefined) {
+    updates.gallery_enabled = galleryEnabled;
+  }
+
+  const idKeys = {
+    showcaseChannelId: 'showcase_channel_id',
+    memeChannelId: 'meme_channel_id',
+    galleryLogChannelId: 'log_channel_id'
+  };
+
+  for (const [inputKey, dbKey] of Object.entries(idKeys)) {
+    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
+      updates[dbKey] = asNullableId(body[inputKey]);
+    }
+  }
+
+  return updates;
+}
+
+function buildTicketUpdates(body = {}) {
+  const updates = {};
+  const ticketsEnabled = toOptionalBoolean(body.ticketsEnabled);
+  if (ticketsEnabled !== undefined) {
+    updates.tickets_enabled = ticketsEnabled;
+  }
+
+  const idKeys = {
+    ticketCategoryId: 'category_channel_id',
+    ticketLogChannelId: 'log_channel_id',
+    supportRoleId: 'support_role_id'
   };
 
   for (const [inputKey, dbKey] of Object.entries(idKeys)) {
@@ -625,6 +821,8 @@ app.get('/api/settings', async (req, res, next) => {
       gallerySettings,
       ticketSettings,
       levelingSettings,
+      rewardRoles,
+      galleryTags,
       skillRoles,
       regionRoles,
       metadata
@@ -634,6 +832,8 @@ app.get('/api/settings', async (req, res, next) => {
       gallerySettingsService.ensureGuildSettings(guildId),
       ticketSettingsService.ensureGuildSettings(guildId),
       guildSettingsRepository.ensureSettings(guildId),
+      rewardRoleService.listRewards(guildId),
+      galleryTagService.listTags(guildId),
       onboardingRoleService.listRolesByGroup(guildId, 'skill'),
       onboardingRoleService.listRolesByGroup(guildId, 'region'),
       fetchGuildMetadata(guildId)
@@ -662,6 +862,8 @@ app.get('/api/settings', async (req, res, next) => {
       gallerySettings,
       ticketSettings,
       levelingSettings,
+      rewardRoles,
+      galleryTags,
       onboarding,
       metadata,
       readiness
@@ -670,6 +872,31 @@ app.get('/api/settings', async (req, res, next) => {
     next(error);
   }
 });
+
+app.put('/api/settings/bot', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await botSettingsService.ensureGuildSettings(guildId);
+    const updates = buildBotUpdates(req.body);
+    const settings = await botSettingsRepository.updateSettings(guildId, updates);
+    res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/settings/leveling', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await guildSettingsRepository.ensureSettings(guildId);
+    const updates = buildLevelingUpdates(req.body);
+    const settings = await guildSettingsRepository.updateSettings(guildId, updates);
+    res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.put('/api/settings/community', async (req, res, next) => {
   try {
     const guildId = resolveGuildId(req);
@@ -677,6 +904,113 @@ app.put('/api/settings/community', async (req, res, next) => {
     const updates = buildCommunityUpdates(req.body);
     const settings = await communitySettingsService.updateSettings(guildId, updates);
     res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/settings/gallery', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await gallerySettingsService.ensureGuildSettings(guildId);
+    const updates = buildGalleryUpdates(req.body);
+    const settings = await gallerySettingsRepository.updateSettings(guildId, updates);
+    res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/gallery-tags', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const name = String(req.body.name || '').trim();
+    if (!name) {
+      throw badRequest('Provide a gallery tag name.');
+    }
+
+    const tag = await galleryTagService.addTag(
+      guildId,
+      name,
+      galleryCategoriesFromInput(req.body.category || 'all')
+    );
+    const tags = await galleryTagService.listTags(guildId);
+    res.status(201).json({ tag, tags });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/settings/gallery-tags/:tagName', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const tagName = String(req.params.tagName || '').trim();
+    if (!tagName) {
+      throw badRequest('Provide a gallery tag name.');
+    }
+
+    const tag = await galleryTagService.removeTag(guildId, tagName);
+    if (!tag) {
+      throw badRequest('That gallery tag was not active.');
+    }
+
+    const tags = await galleryTagService.listTags(guildId);
+    res.json({ tag, tags });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/settings/tickets', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await ticketSettingsService.ensureGuildSettings(guildId);
+    const updates = buildTicketUpdates(req.body);
+    const settings = await ticketSettingsService.updateSettings(guildId, updates);
+    res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/rewards', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const roleId = asNullableId(req.body.roleId);
+    if (!roleId) {
+      throw badRequest('Choose a reward role.');
+    }
+
+    const requiredLevel = parseRequiredLevel(req.body.requiredLevel);
+    const reward = await rewardRoleService.addReward(guildId, roleId, requiredLevel, 'dashboard');
+    const rewards = await rewardRoleService.listRewards(guildId);
+    res.status(201).json({ reward, rewards });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/settings/rewards/:roleId', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const roleId = asNullableId(req.params.roleId);
+    if (!roleId) {
+      throw badRequest('Choose a reward role.');
+    }
+
+    const reward = await rewardRoleService.removeReward(
+      guildId,
+      roleId,
+      'dashboard',
+      'Removed from the dashboard.'
+    );
+
+    if (!reward) {
+      throw badRequest('That reward role was not active.');
+    }
+
+    const rewards = await rewardRoleService.listRewards(guildId);
+    res.json({ reward, rewards });
   } catch (error) {
     next(error);
   }
@@ -741,7 +1075,9 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.listen(port, () => {
-  logger.info(`General Bot dashboard running on http://localhost:${port}`);
+app.listen(port, host, () => {
+  if (!dashboardPassword) {
+    logger.warn('Dashboard password is not set. Direct access is limited to localhost.');
+  }
+  logger.info(`General Bot dashboard running on http://${host}:${port}`);
 });
-

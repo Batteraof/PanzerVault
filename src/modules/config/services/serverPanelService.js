@@ -273,7 +273,7 @@ function footerTextForMessage(message) {
 }
 
 async function findExistingPanelMessage(channel, marker, clientUserId) {
-  const pinned = await channel.messages.fetchPinned().catch(() => null);
+  const pinned = await channel.messages.fetchPins().catch(() => null);
   if (pinned) {
     const pinnedMatch = pinned.find(message =>
       message.author.id === clientUserId && footerTextForMessage(message) === marker

@@ -376,14 +376,18 @@ main {
 .list,
 .table-list,
 .ticket-board,
-.content-grid {
+.content-grid,
+.reward-list,
+.tag-admin-list {
   display: grid;
   gap: 10px;
 }
 
 .row,
 .content-item,
-.ticket-card {
+.ticket-card,
+.reward-row,
+.tag-admin-row {
   border: 1px solid rgba(200, 161, 90, 0.12);
   border-radius: 8px;
   background: rgba(245, 241, 232, 0.035);
@@ -393,7 +397,9 @@ main {
 
 .row:hover,
 .content-item:hover,
-.ticket-card:hover {
+.ticket-card:hover,
+.reward-row:hover,
+.tag-admin-row:hover {
   background: rgba(245, 241, 232, 0.055);
   border-color: rgba(200, 161, 90, 0.28);
 }
@@ -403,6 +409,27 @@ main {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
+}
+
+.reward-row,
+.tag-admin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.reward-row span,
+.tag-admin-row span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.compact-button {
+  min-height: 36px;
+  padding: 0 12px;
 }
 
 .row-body {
@@ -618,6 +645,7 @@ main {
 
 .action-row {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
 }
 
@@ -863,6 +891,14 @@ main {
   }
 
   .bar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tag-admin-row {
     grid-template-columns: 1fr;
   }
 }
