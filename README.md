@@ -4,7 +4,7 @@ CommonJS Discord.js v14 bot for Tanks Let Loose with:
 
 - welcome flow
 - rules verification
-- onboarding role selection
+- Discord Onboarding handoff with optional bot fallback roles
 - PostgreSQL-backed leveling
 - guided gallery submissions
 - YouTube video submissions
@@ -129,15 +129,22 @@ Staff-only slash commands use default member permissions so normal members shoul
 
 ## Rules And Onboarding
 
-When rules verification is enabled:
+Recommended setup:
+
+- Discord Onboarding assigns platform, skill, region, interest, and channel roles
+- the bot keeps XP reward roles, tickets, media/gallery/video flows, events, spotlight, and dashboard/admin automation
+- optional coach role stays in the bot so Medium and Expert members can opt into being helper contacts
+- set `ONBOARDING_ENABLED=false` when Discord Onboarding handles the basic roles
+
+When bot rules verification is enabled:
 
 - the bot keeps a pinned rules panel in the rules channel
 - members click **I Agree** to receive the verified role
-- after agreeing, they can immediately choose:
+- if `ONBOARDING_ENABLED=true`, they can immediately choose fallback bot roles:
   - skill: `Beginner / Medium / Expert`
   - region: `EU / UK / NA / LATAM / AFRICA / SA / EA / SEA / OCE`
-- Medium and Expert members can opt into a coach role
-- beginners are told they can ping coaches for help
+- Medium and Expert members can opt into a coach role when it is configured
+- beginners are told who can help
 
 Important: Discord channel permissions still need to be set so only the verified role can see the full server.
 

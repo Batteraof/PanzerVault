@@ -118,7 +118,7 @@ const config = {
     url: process.env.DASHBOARD_URL || ''
   },
   community: {
-    onboardingEnabled: boolFromEnv(process.env.ONBOARDING_ENABLED, true),
+    onboardingEnabled: boolFromEnv(process.env.ONBOARDING_ENABLED, false),
     communityChannelId: process.env.COMMUNITY_CHANNEL_ID || '',
     mediaChannelId: process.env.MEDIA_CHANNEL_ID || '',
     videoEnabled: boolFromEnv(process.env.VIDEO_ENABLED, true),
