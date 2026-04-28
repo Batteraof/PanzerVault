@@ -51,6 +51,8 @@ const uiState = {
   ticketSettingsTone: 'info',
   rewardMessage: '',
   rewardTone: 'info',
+  teamMessage: '',
+  teamTone: 'info',
   onboardingMessage: '',
   onboardingTone: 'info'
 };
@@ -271,6 +273,10 @@ function getLevelingSettings() {
 
 function getRewardRoles() {
   return state.settings?.rewardRoles || [];
+}
+
+function getTeamRoles() {
+  return state.settings?.teamRoles || [];
 }
 
 function getGalleryTags() {
@@ -902,6 +908,66 @@ function renderRewardSettings() {
   });
 }
 
+function renderTeamSettings() {
+  const teamRoles = getTeamRoles();
+  const metadata = getMetadata();
+
+  html('#team-settings', `
+    <div class="panel-note">Configure the team roles shown by /team. Members can choose one active team role at a time.</div>
+    <form id="team-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Add or update team</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Team label</span>
+            <input type="text" name="teamLabel" maxlength="60" placeholder="Armor, Infantry, Recon..." required>
+            <small>This is the label members see in /team.</small>
+          </label>
+
+          <label class="field">
+            <span>Team role</span>
+            <select name="teamRoleId" required>${selectOptions(metadata.roles, '', 'Choose a team role')}</select>
+            <small>The Discord role assigned when members choose this team.</small>
+          </label>
+
+          <label class="field">
+            <span>Sort order</span>
+            <input type="number" name="teamSortOrder" step="1" value="0">
+            <small>Lower numbers appear first.</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Active teams</h3>
+        <div class="reward-list">
+          ${teamRoles.map(team => `
+            <div class="reward-row">
+              <div>
+                <strong>${escapeHtml(team.label)}</strong>
+                <span>${escapeHtml(labelFor(metadata.roles, team.roleId, `Role ${team.roleId}`))} - order ${escapeHtml(formatCount(team.sortOrder || 0))}</span>
+              </div>
+              <button class="button-secondary compact-button team-remove-button" type="button" data-option-key="${escapeHtml(team.optionKey)}">Remove</button>
+            </div>
+          `).join('') || renderEmpty('No team roles configured yet.', 'Add the first team role above and members can choose it with /team.')}
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.teamMessage, uiState.teamTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Team Role</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#team-settings-form');
+  if (form) form.addEventListener('submit', handleTeamSettingsSubmit);
+  document.querySelectorAll('.team-remove-button').forEach(button => {
+    button.addEventListener('click', handleTeamRemoveClick);
+  });
+}
+
 function renderOnboardingSettings() {
   const onboarding = getOnboarding();
   const community = getCommunitySettings();
@@ -971,6 +1037,7 @@ function renderSettings() {
   renderGallerySettings();
   renderTicketSettings();
   renderRewardSettings();
+  renderTeamSettings();
   renderOnboardingSettings();
 }
 
@@ -1380,6 +1447,70 @@ async function handleRewardRemoveClick(event) {
     console.error(error);
     uiState.rewardMessage = error.message;
     uiState.rewardTone = 'error';
+    renderSettings();
+  }
+}
+
+async function handleTeamSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.teamMessage = 'Saving team role...';
+  uiState.teamTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/team-roles', {
+      method: 'POST',
+      body: JSON.stringify({
+        label: form.elements.teamLabel.value,
+        roleId: form.elements.teamRoleId.value,
+        sortOrder: form.elements.teamSortOrder.value
+      })
+    });
+
+    uiState.teamMessage = 'Team role saved.';
+    uiState.teamTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.teamMessage = error.message;
+    uiState.teamTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#team-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleTeamRemoveClick(event) {
+  const optionKey = event.currentTarget.dataset.optionKey;
+  if (!optionKey) return;
+
+  uiState.teamMessage = 'Removing team role...';
+  uiState.teamTone = 'info';
+  renderSettings();
+
+  try {
+    await apiRequest(`/api/settings/team-roles/${encodeURIComponent(optionKey)}`, {
+      method: 'DELETE'
+    });
+
+    uiState.teamMessage = 'Team role removed.';
+    uiState.teamTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.teamMessage = error.message;
+    uiState.teamTone = 'error';
     renderSettings();
   }
 }

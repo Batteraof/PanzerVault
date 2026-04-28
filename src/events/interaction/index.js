@@ -1,6 +1,7 @@
 const { MessageFlags } = require('discord.js');
 const botCommand = require('../../commands/bot');
 const roleCommand = require('../../commands/role');
+const teamCommand = require('../../commands/team');
 const rankCommand = require('../../commands/rank');
 const rankResetCommand = require('../../commands/rankReset');
 const galleryCommand = require('../../commands/gallery');
@@ -25,6 +26,7 @@ const logger = require('../../logger');
 const slashCommands = new Map([
   [botCommand.data.name, botCommand],
   [roleCommand.data.name, roleCommand],
+  [teamCommand.data.name, teamCommand],
   [rankCommand.data.name, rankCommand],
   [rankResetCommand.data.name, rankResetCommand],
   [submitCommand.data.name, submitCommand],

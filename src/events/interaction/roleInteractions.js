@@ -17,6 +17,7 @@ const {
 const botSettingsService = require('../../modules/config/services/botSettingsService');
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
+const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
 const logger = require('../../logger');
 
 function isCoachEligible(skillOptionKey) {
@@ -47,6 +48,7 @@ function isRoleSelect(customId) {
   return [
     customIds.SKILL_SELECT,
     customIds.REGION_SELECT,
+    customIds.TEAM_SELECT,
     customIds.ROLE_SELECT
   ].includes(customId);
 }
@@ -309,6 +311,14 @@ async function handleRoleSelect(interaction) {
 
   if (interaction.customId === customIds.ROLE_SELECT) {
     return assignRoleFromGroup(interaction, 'skill', interaction.values[0].replace('role_', ''));
+  }
+
+  if (interaction.customId === customIds.TEAM_SELECT) {
+    const result = await memberTeamRoleService.setMemberTeamRole(interaction.member, interaction.values[0]);
+    await respondEphemeral(interaction, result.ok
+      ? `Done. Your team role is now ${result.role}.`
+      : result.message);
+    return true;
   }
 
   return false;

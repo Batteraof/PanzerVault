@@ -28,12 +28,12 @@ module.exports = {
       .addFields(
         {
           name: 'What I Can Do',
-          value: 'Welcome new members and invite optional introductions\nLet members update their skill role with `/role`\nOffer the helper role to Medium and Expert members\nTrack text and voice XP\nGuide gallery and video submissions with a unified draft wizard\nRun event RSVP posts and reminders\nManage monthly Community Spotlight nominations and voting\nManage support tickets\nPost weekly recaps and server anniversaries\nPoint members to the server site',
+          value: 'Welcome new members and invite optional introductions\nLet members update their skill role with `/role`\nLet members choose a team role with `/team`\nOffer the helper role to Medium and Expert members\nTrack text and voice XP\nGuide gallery and video submissions with a unified draft wizard\nRun event RSVP posts and reminders\nManage monthly Community Spotlight nominations and voting\nManage support tickets\nPost weekly recaps and server anniversaries\nPoint members to the server site',
           inline: false
         },
         {
           name: 'Public Commands',
-          value: '`/bot`\n`/role`\n`/rank`\n`/leaderboard`\n`/profile`\n`/submit`\n`/tags`\n`/spotlight`\n`/ticket`',
+          value: '`/bot`\n`/role`\n`/team`\n`/rank`\n`/leaderboard`\n`/profile`\n`/submit`\n`/tags`\n`/spotlight`\n`/ticket`',
           inline: true
         },
         {

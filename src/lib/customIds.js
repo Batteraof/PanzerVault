@@ -9,6 +9,7 @@ module.exports = {
   AGREE_RULES: 'agree_rules',
   SKILL_SELECT: 'skill_select',
   REGION_SELECT: 'region_select',
+  TEAM_SELECT: 'team_select',
   COACH_TOGGLE: 'coach_toggle',
   EVENT_RSVP_PREFIX: 'event_rsvp',
   EVENT_ATTEND_PREFIX: 'event_attend',
