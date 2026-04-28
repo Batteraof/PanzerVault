@@ -182,7 +182,7 @@ async function showIntroduceSelfModal(interaction) {
     .setRequired(true)
     .setMinLength(10)
     .setMaxLength(700)
-    .setPlaceholder('Your name/nickname, where you play from, what you enjoy in Hell Let Loose, or anything you want to share.');
+    .setPlaceholder('Nickname, region, playstyle, favorite role, or anything you want to share.');
 
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);

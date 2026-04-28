@@ -84,8 +84,8 @@ async function handleGuildMemberAdd(member) {
     .setImage('https://i.imgur.com/jNjayEQ.png')
     .addFields(
       { name: 'Members', value: `${member.guild.memberCount}`, inline: true },
-      { name: 'Site', value: 'Visit the site for the server overview, links, and community info.', inline: true },
-      { name: 'General', value: 'Introduce yourself if you want. Members can wave back to welcome you.', inline: true }
+      { name: 'Site', value: 'Server overview, links, events, and community info live there.', inline: false },
+      { name: 'General', value: 'Introduce yourself if you want. Members can wave back to welcome you.', inline: false }
     )
     .setFooter({ text: 'Enjoy your stay.' })
     .setTimestamp();
