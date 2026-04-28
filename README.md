@@ -109,6 +109,7 @@ The bot uses:
 
 - `/bot`
 - `/role`
+- `/team`
 - `/rank`
 - `/leaderboard`
 - `/profile`
@@ -137,6 +138,7 @@ Recommended setup:
 - optional helper role stays in the bot so Medium and Expert members can opt into being helper contacts
 - set `ONBOARDING_ENABLED=false` when Discord Onboarding handles the basic roles
 - members can use `/role` later if their Beginner / Medium / Expert role needs to be changed
+- members can use `/team` to choose one configurable team role from the dashboard-managed team list
 
 When bot rules verification is enabled:
 

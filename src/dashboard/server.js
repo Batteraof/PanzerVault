@@ -11,6 +11,7 @@ const logger = require('../logger');
 const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
+const teamRoleService = require('../modules/config/services/teamRoleService');
 const gallerySettingsService = require('../modules/gallery/services/gallerySettingsService');
 const galleryTagService = require('../modules/gallery/services/galleryTagService');
 const ticketSettingsService = require('../modules/tickets/services/ticketSettingsService');
@@ -327,6 +328,15 @@ async function fetchGuildMetadata(guildId) {
 }
 function roleMapFromRows(rows) {
   return Object.fromEntries((rows || []).map(row => [row.option_key, row.role_id]));
+}
+
+function serializeSelectableRoles(rows) {
+  return (rows || []).map(row => ({
+    optionKey: row.option_key,
+    label: row.label,
+    roleId: row.role_id,
+    sortOrder: row.sort_order
+  }));
 }
 
 function asNullableId(value) {
@@ -825,6 +835,7 @@ app.get('/api/settings', async (req, res, next) => {
       galleryTags,
       skillRoles,
       regionRoles,
+      teamRoles,
       metadata
     ] = await Promise.all([
       botSettingsService.ensureGuildSettings(guildId),
@@ -836,6 +847,7 @@ app.get('/api/settings', async (req, res, next) => {
       galleryTagService.listTags(guildId),
       onboardingRoleService.listRolesByGroup(guildId, 'skill'),
       onboardingRoleService.listRolesByGroup(guildId, 'region'),
+      teamRoleService.listTeamRoles(guildId),
       fetchGuildMetadata(guildId)
     ]);
 
@@ -864,6 +876,7 @@ app.get('/api/settings', async (req, res, next) => {
       levelingSettings,
       rewardRoles,
       galleryTags,
+      teamRoles: serializeSelectableRoles(teamRoles),
       onboarding,
       metadata,
       readiness
@@ -1058,6 +1071,61 @@ app.put('/api/settings/onboarding', async (req, res, next) => {
         skillRoles: roleMapFromRows(refreshedSkillRoles),
         regionRoles: roleMapFromRows(refreshedRegionRoles)
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/team-roles', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const label = String(req.body.label || '').trim();
+    const roleId = asNullableId(req.body.roleId);
+    const sortOrder = Number.parseInt(req.body.sortOrder, 10);
+
+    if (!label) {
+      throw badRequest('Provide a team label.');
+    }
+
+    if (!roleId) {
+      throw badRequest('Choose a Discord role for this team.');
+    }
+
+    const teamRole = await teamRoleService.upsertTeamRole(
+      guildId,
+      label,
+      roleId,
+      Number.isFinite(sortOrder) ? sortOrder : 0
+    );
+    const teamRoles = await teamRoleService.listTeamRoles(guildId);
+
+    res.status(201).json({
+      teamRole,
+      teamRoles: serializeSelectableRoles(teamRoles)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/settings/team-roles/:optionKey', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const optionKey = String(req.params.optionKey || '').trim();
+    if (!optionKey) {
+      throw badRequest('Choose a team role option to remove.');
+    }
+
+    const teamRole = await teamRoleService.disableTeamRole(guildId, optionKey);
+    if (!teamRole) {
+      throw badRequest('That team role option was not active.');
+    }
+
+    const teamRoles = await teamRoleService.listTeamRoles(guildId);
+    res.json({
+      teamRole,
+      teamRoles: serializeSelectableRoles(teamRoles)
     });
   } catch (error) {
     next(error);
