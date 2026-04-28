@@ -18,6 +18,7 @@ const botSettingsService = require('../../modules/config/services/botSettingsSer
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
 const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
+const { buildTeamRolePicker } = require('../../lib/teamRolePicker');
 const logger = require('../../logger');
 
 function isCoachEligible(skillOptionKey) {
@@ -29,6 +30,7 @@ function isRoleButton(customId) {
     customIds.JOIN_INFO,
     customIds.INTRODUCE_SELF,
     customIds.SITE_INFO,
+    customIds.TEAM_MENU,
     customIds.ROLES_MENU,
     customIds.AGREE_RULES,
     customIds.COACH_TOGGLE
@@ -221,7 +223,15 @@ async function handleIntroduceSelfSubmit(interaction) {
     logger.warn('Failed to add welcome wave reaction', error);
   });
 
-  await respondEphemeral(interaction, `Thanks. I posted your introduction in ${channel}.`);
+  const picker = await buildTeamRolePicker(interaction.guild.id);
+  const teamLine = picker.components.length > 0
+    ? '\n\nYou can also choose a team now if you want.'
+    : '';
+
+  await respondEphemeral(interaction, {
+    content: `Thanks. I posted your introduction in ${channel}.${teamLine}\n\n${picker.content}`,
+    components: picker.components
+  });
   return true;
 }
 
@@ -253,6 +263,10 @@ async function handleRoleButton(interaction) {
     return respondEphemeral(interaction, {
       content: `Visit the server site for community links, server info, and the quickest overview of what Tanks Let Loose is about:\n${config.channels.siteUrl}`
     });
+  }
+
+  if (interaction.customId === customIds.TEAM_MENU) {
+    return respondEphemeral(interaction, await buildTeamRolePicker(interaction.guild.id));
   }
 
   if (interaction.customId === customIds.AGREE_RULES) {
