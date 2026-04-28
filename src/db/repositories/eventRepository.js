@@ -41,6 +41,10 @@ async function updateEvent(guildId, eventId, updates, client) {
   const allowed = [
     'message_id',
     'status',
+    'title',
+    'description',
+    'external_url',
+    'starts_at',
     'time_zone',
     'reminder_3d_sent_at',
     'reminder_1d_sent_at',
@@ -151,6 +155,27 @@ async function listUpcoming(guildId, client) {
     ORDER BY starts_at ASC
     `,
     [guildId]
+  );
+
+  return result.rows;
+}
+
+async function listRsvps(eventId, client) {
+  const result = await executor(client).query(
+    `
+    SELECT *
+    FROM event_rsvps
+    WHERE event_id = $1
+    ORDER BY
+      CASE status
+        WHEN 'going' THEN 1
+        WHEN 'maybe' THEN 2
+        WHEN 'not_going' THEN 3
+        ELSE 4
+      END,
+      updated_at ASC
+    `,
+    [eventId]
   );
 
   return result.rows;
@@ -338,6 +363,7 @@ module.exports = {
   listDueForOneDayReminder,
   markCompletedBefore,
   listUpcoming,
+  listRsvps,
   upsertRsvp,
   getRsvpCounts,
   listRsvpsByStatuses,

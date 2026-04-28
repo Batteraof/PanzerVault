@@ -230,6 +230,14 @@ Staff create events with `/event create`.
 
 `/event create` supports templates for casual sessions, training nights, clan matches, and community operations. Staff can also choose the timezone used for the typed start time.
 
+Staff can manage events with:
+
+- `/event list`
+- `/event info`
+- `/event attendees`
+- `/event edit`
+- `/event cancel`
+
 Each event post includes:
 
 - event title

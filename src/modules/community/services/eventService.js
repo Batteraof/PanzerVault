@@ -9,7 +9,7 @@ const eventRepository = require('../../../db/repositories/eventRepository');
 const communitySettingsService = require('../../config/services/communitySettingsService');
 const eventXpService = require('../../engagement/services/eventXpService');
 const customIds = require('../../../lib/customIds');
-const { parseLocalDateTimeString } = require('../utils/dateUtils');
+const { parseDateTimeInTimeZone, parseLocalDateTimeString } = require('../utils/dateUtils');
 const logger = require('../../../logger');
 
 const RSVP_STATES = {
@@ -154,6 +154,34 @@ function validateLink(input) {
   return url.toString();
 }
 
+function eventMessageUrl(event) {
+  return event.message_id
+    ? `https://discord.com/channels/${event.guild_id}/${event.channel_id}/${event.message_id}`
+    : null;
+}
+
+function formatTimestamp(dateValue) {
+  const timestamp = Math.floor(new Date(dateValue).getTime() / 1000);
+  return `<t:${timestamp}:F> (<t:${timestamp}:R>)`;
+}
+
+function trimLines(lines, maxLength = 1900) {
+  const output = [];
+  let length = 0;
+
+  for (const line of lines) {
+    const nextLength = length + line.length + 1;
+    if (nextLength > maxLength) {
+      output.push('...truncated.');
+      break;
+    }
+    output.push(line);
+    length = nextLength;
+  }
+
+  return output.join('\n');
+}
+
 async function renderEventMessage(channel, event) {
   const counts = await eventRepository.getRsvpCounts(event.id);
   return channel.send({
@@ -268,6 +296,145 @@ async function cancelEvent(interaction) {
     cancellation_reason: reason
   });
 
+  await refreshEventMessage(interaction.client, updated);
+  return updated;
+}
+
+async function listEvents(interaction) {
+  const events = await eventRepository.listUpcoming(interaction.guild.id);
+  if (events.length === 0) {
+    return 'No upcoming scheduled events.';
+  }
+
+  const lines = ['Upcoming events:'];
+  for (const event of events.slice(0, 10)) {
+    const counts = await eventRepository.getRsvpCounts(event.id);
+    const link = eventMessageUrl(event);
+    lines.push(
+      `#${event.id} **${event.title}** - ${formatTimestamp(event.starts_at)} - Going ${counts.going_count}, Maybe ${counts.maybe_count}${link ? ` - ${link}` : ''}`
+    );
+  }
+
+  if (events.length > 10) {
+    lines.push(`And ${events.length - 10} more upcoming event${events.length - 10 === 1 ? '' : 's'}.`);
+  }
+
+  return trimLines(lines);
+}
+
+async function eventInfo(interaction) {
+  const eventId = interaction.options.getInteger('event_id', true);
+  const event = await eventRepository.findById(interaction.guild.id, eventId);
+  if (!event) {
+    throw new Error('That event does not exist.');
+  }
+
+  const counts = await eventRepository.getRsvpCounts(event.id);
+  const attendance = await eventRepository.listAttendance(event.id);
+  const lines = [
+    `Event #${event.id}: **${event.title}**`,
+    `Status: ${event.status}`,
+    `Starts: ${formatTimestamp(event.starts_at)}`,
+    `Timezone: ${event.time_zone || 'Server local time'}`,
+    `RSVP: Going ${counts.going_count}, Maybe ${counts.maybe_count}, Not Going ${counts.not_going_count}`,
+    `Check-ins: ${attendance.length}`
+  ];
+
+  if (event.ends_at) lines.push(`Ends: ${formatTimestamp(event.ends_at)}`);
+  if (event.description) lines.push(`Description: ${event.description}`);
+  if (event.external_url) lines.push(`Link: ${event.external_url}`);
+  if (eventMessageUrl(event)) lines.push(`RSVP post: ${eventMessageUrl(event)}`);
+
+  return trimLines(lines);
+}
+
+function mentionList(rows) {
+  if (rows.length === 0) return 'None';
+  return rows.map(row => `<@${row.user_id}>`).join(', ');
+}
+
+async function eventAttendees(interaction) {
+  const eventId = interaction.options.getInteger('event_id', true);
+  const event = await eventRepository.findById(interaction.guild.id, eventId);
+  if (!event) {
+    throw new Error('That event does not exist.');
+  }
+
+  const [rsvps, attendance] = await Promise.all([
+    eventRepository.listRsvps(event.id),
+    eventRepository.listAttendance(event.id)
+  ]);
+
+  const going = rsvps.filter(row => row.status === RSVP_STATES.GOING);
+  const maybe = rsvps.filter(row => row.status === RSVP_STATES.MAYBE);
+  const notGoing = rsvps.filter(row => row.status === RSVP_STATES.NOT_GOING);
+
+  return trimLines([
+    `Event #${event.id}: **${event.title}**`,
+    `Going (${going.length}): ${mentionList(going)}`,
+    `Maybe (${maybe.length}): ${mentionList(maybe)}`,
+    `Not Going (${notGoing.length}): ${mentionList(notGoing)}`,
+    `Checked in (${attendance.length}): ${mentionList(attendance)}`
+  ]);
+}
+
+async function editEvent(interaction) {
+  const eventId = interaction.options.getInteger('event_id', true);
+  const event = await eventRepository.findById(interaction.guild.id, eventId);
+  if (!event) {
+    throw new Error('That event does not exist.');
+  }
+
+  if (event.status !== 'scheduled') {
+    throw new Error('Only scheduled events can be edited.');
+  }
+
+  const updates = {};
+  const title = interaction.options.getString('title');
+  const description = interaction.options.getString('description');
+  const link = interaction.options.getString('link');
+  const startsAtInput = interaction.options.getString('starts_at');
+  const timeZone = interaction.options.getString('timezone');
+
+  if (title !== null) {
+    if (!title.trim()) throw new Error('Event title cannot be empty.');
+    updates.title = title.trim();
+  }
+  if (description !== null) updates.description = description.trim() || null;
+  if (link !== null) updates.external_url = link.trim() ? validateLink(link.trim()) : null;
+  if (timeZone !== null) updates.time_zone = timeZone || null;
+
+  if (startsAtInput) {
+    const effectiveTimeZone = timeZone || event.time_zone;
+    const startsAt = effectiveTimeZone
+      ? parseDateTimeInTimeZone(startsAtInput, effectiveTimeZone)
+      : parseLocalDateTimeString(startsAtInput);
+
+    if (!startsAt) {
+      throw new Error(effectiveTimeZone
+        ? `Use \`YYYY-MM-DD HH:MM\` for the event time. I could not read that time in ${effectiveTimeZone}.`
+        : 'Use `YYYY-MM-DD HH:MM` for the event time.');
+    }
+
+    if (startsAt.getTime() <= Date.now()) {
+      throw new Error('The event time must be in the future.');
+    }
+
+    updates.starts_at = startsAt;
+
+    if (event.ends_at) {
+      const previousDurationMs = new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime();
+      if (previousDurationMs > 0) {
+        updates.ends_at = new Date(startsAt.getTime() + previousDurationMs);
+      }
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error('Give me at least one field to edit.');
+  }
+
+  const updated = await eventRepository.updateEvent(interaction.guild.id, event.id, updates);
   await refreshEventMessage(interaction.client, updated);
   return updated;
 }
@@ -401,6 +568,10 @@ module.exports = {
   createEvent,
   createEventPrepared,
   cancelEvent,
+  listEvents,
+  eventInfo,
+  eventAttendees,
+  editEvent,
   handleRsvp,
   handleAttendance,
   processDueReminders,
