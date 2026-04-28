@@ -138,7 +138,10 @@ Recommended setup:
 - optional helper role stays in the bot so Medium and Expert members can opt into being helper contacts
 - set `ONBOARDING_ENABLED=false` when Discord Onboarding handles the basic roles
 - members can use `/role` later if their Beginner / Medium / Expert role needs to be changed
-- members can use `/team` to choose one configurable team role from the dashboard-managed team list
+- members can use `/team choose` to pick one configurable dashboard-managed team role
+- members can use `/team clear` to remove their configured team role
+
+Members can only post one introduction through **Tell us about yourself**. Staff can still moderate or manually clean up the posted message if needed.
 
 When bot rules verification is enabled:
 

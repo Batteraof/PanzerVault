@@ -18,6 +18,7 @@ const botSettingsService = require('../../modules/config/services/botSettingsSer
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
 const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
+const memberIntroductionRepository = require('../../db/repositories/memberIntroductionRepository');
 const { buildTeamRolePicker } = require('../../lib/teamRolePicker');
 const logger = require('../../logger');
 
@@ -175,6 +176,12 @@ async function handleCoachToggle(interaction) {
 }
 
 async function showIntroduceSelfModal(interaction) {
+  const existing = await memberIntroductionRepository.getIntroduction(interaction.guild.id, interaction.user.id);
+  if (existing) {
+    await respondEphemeral(interaction, 'You have already posted your introduction. Staff can help if you need it changed.');
+    return true;
+  }
+
   const modal = new ModalBuilder()
     .setCustomId(customIds.INTRODUCE_SELF_MODAL)
     .setTitle('Tell us about yourself');
@@ -194,12 +201,19 @@ async function showIntroduceSelfModal(interaction) {
 }
 
 async function handleIntroduceSelfSubmit(interaction) {
+  const reserved = await memberIntroductionRepository.reserveIntroduction(interaction.guild.id, interaction.user.id);
+  if (!reserved) {
+    await respondEphemeral(interaction, 'You have already posted your introduction. Staff can help if you need it changed.');
+    return true;
+  }
+
   const generalChannelId = getGeneralChannelId();
   const channel = generalChannelId
     ? interaction.guild.channels.cache.get(generalChannelId) || await interaction.guild.channels.fetch(generalChannelId).catch(() => null)
     : null;
 
   if (!channel || !channel.isTextBased()) {
+    await memberIntroductionRepository.releaseIntroduction(interaction.guild.id, interaction.user.id);
     await respondEphemeral(interaction, 'I could not find the general channel for introductions. Please tell staff.');
     return true;
   }
@@ -213,11 +227,24 @@ async function handleIntroduceSelfSubmit(interaction) {
     .setFooter({ text: 'Wave back to welcome them.' })
     .setTimestamp();
 
-  const message = await channel.send({
-    content: `${interaction.user} told us a bit about themselves.`,
-    embeds: [embed],
-    allowedMentions: { users: [interaction.user.id], roles: [] }
-  });
+  let message;
+  try {
+    message = await channel.send({
+      content: `${interaction.user} told us a bit about themselves.`,
+      embeds: [embed],
+      allowedMentions: { users: [interaction.user.id], roles: [] }
+    });
+  } catch (error) {
+    await memberIntroductionRepository.releaseIntroduction(interaction.guild.id, interaction.user.id);
+    throw error;
+  }
+
+  await memberIntroductionRepository.markIntroductionPosted(
+    interaction.guild.id,
+    interaction.user.id,
+    channel.id,
+    message.id
+  );
 
   await message.react('\u{1F44B}').catch(error => {
     logger.warn('Failed to add welcome wave reaction', error);

@@ -1,5 +1,4 @@
 const {
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -10,6 +9,7 @@ const customIds = require('../../lib/customIds');
 const botSettingsService = require('../../modules/config/services/botSettingsService');
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const memberSkillRoleService = require('../../modules/config/services/memberSkillRoleService');
+const { buildWelcomePayload } = require('../../lib/welcomeMessage');
 const logger = require('../../logger');
 
 function parseChannelIdFromUrl(url = '') {
@@ -60,8 +60,20 @@ async function maybeSendHelperPrompt(member, channel = null) {
 }
 
 async function handleGuildMemberUpdate(oldMember, newMember) {
+  const communitySettings = await communitySettingsService.ensureGuildSettings(newMember.guild.id);
   const wasEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(oldMember);
   const isEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(newMember);
+
+  if (
+    wasEligible &&
+    !isEligible &&
+    communitySettings.coach_role_id &&
+    newMember.roles.cache.has(communitySettings.coach_role_id)
+  ) {
+    await newMember.roles.remove(communitySettings.coach_role_id).catch(error => {
+      logger.warn('Failed to remove helper role after skill downgrade', error);
+    });
+  }
 
   if (!wasEligible && isEligible) {
     await maybeSendHelperPrompt(newMember);
@@ -76,41 +88,8 @@ async function handleGuildMemberAdd(member) {
   const channel = member.guild.channels.cache.get(welcomeChannelId);
   if (!channel || !channel.isTextBased()) return;
 
-  const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle(`Welcome to ${member.guild.name}`)
-    .setDescription(`Hey ${member}, glad you made it in. Discord already handled the basics, so the next step is just getting settled and saying hello when you feel like it.`)
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
-    .setImage('https://i.imgur.com/jNjayEQ.png')
-    .addFields(
-      { name: 'Members', value: `${member.guild.memberCount}`, inline: true },
-      { name: 'Site', value: 'Server overview, links, events, and community info live there.', inline: false },
-      { name: 'General', value: 'Introduce yourself if you want. Members can wave back to welcome you.', inline: false }
-    )
-    .setFooter({ text: 'Enjoy your stay.' })
-    .setTimestamp();
-
-  const row = new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setLabel('Tell us about yourself')
-        .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.INTRODUCE_SELF),
-      new ButtonBuilder()
-        .setLabel('Visit the site')
-        .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.SITE_INFO),
-      new ButtonBuilder()
-        .setLabel('Choose team')
-        .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.TEAM_MENU)
-    );
-
   try {
-    await channel.send({
-      embeds: [embed],
-      components: [row]
-    });
+    await channel.send(buildWelcomePayload(member));
     await maybeSendHelperPrompt(member, channel);
   } catch (error) {
     logger.warn('Failed to send welcome message', error);

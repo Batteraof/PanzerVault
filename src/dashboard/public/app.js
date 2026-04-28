@@ -563,12 +563,15 @@ function renderBotSettings() {
 
       <div class="action-row">
         <button class="button-primary" type="submit">Save Bot Settings</button>
+        <button class="button-secondary" type="button" id="test-welcome-button">Send Test Welcome</button>
       </div>
     </form>
   `);
 
   const form = qs('#bot-settings-form');
   if (form) form.addEventListener('submit', handleBotSettingsSubmit);
+  const testWelcomeButton = qs('#test-welcome-button');
+  if (testWelcomeButton) testWelcomeButton.addEventListener('click', handleTestWelcomeClick);
 }
 
 function renderLevelingSettings() {
@@ -1152,6 +1155,43 @@ async function handleBotSettingsSubmit(event) {
     if (refreshedButton) {
       refreshedButton.disabled = false;
       refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleTestWelcomeClick() {
+  const button = qs('#test-welcome-button');
+  const originalLabel = button ? button.textContent : 'Send Test Welcome';
+
+  uiState.botMessage = 'Sending test welcome...';
+  uiState.botTone = 'info';
+  renderSettings();
+
+  try {
+    const refreshedButton = qs('#test-welcome-button');
+    if (refreshedButton) {
+      refreshedButton.disabled = true;
+      refreshedButton.textContent = 'Sending...';
+    }
+
+    const result = await apiRequest('/api/settings/bot/test-welcome', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    uiState.botMessage = `Test welcome sent to channel ${result.channelId}.`;
+    uiState.botTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.botMessage = error.message;
+    uiState.botTone = 'error';
+    renderSettings();
+  } finally {
+    const finalButton = qs('#test-welcome-button');
+    if (finalButton) {
+      finalButton.disabled = false;
+      finalButton.textContent = originalLabel;
     }
   }
 }
