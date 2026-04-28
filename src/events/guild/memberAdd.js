@@ -99,7 +99,11 @@ async function handleGuildMemberAdd(member) {
       new ButtonBuilder()
         .setLabel('Visit the site')
         .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.SITE_INFO)
+        .setCustomId(customIds.SITE_INFO),
+      new ButtonBuilder()
+        .setLabel('Choose team')
+        .setStyle(ButtonStyle.Primary)
+        .setCustomId(customIds.TEAM_MENU)
     );
 
   try {

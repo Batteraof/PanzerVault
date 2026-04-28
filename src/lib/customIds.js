@@ -4,6 +4,7 @@ module.exports = {
   INTRODUCE_SELF_MODAL: 'introduce_self_modal',
   INTRODUCE_SELF_INPUT: 'introduce_self_input',
   SITE_INFO: 'site_info',
+  TEAM_MENU: 'team_menu',
   ROLES_MENU: 'roles_menu',
   ROLE_SELECT: 'role_select',
   AGREE_RULES: 'agree_rules',
