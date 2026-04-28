@@ -1,4 +1,4 @@
-const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags, SlashCommandBuilder } = require('discord.js');
 const spotlightService = require('../modules/community/services/spotlightService');
 const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
 const logger = require('../logger');
@@ -45,7 +45,10 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guild) {
-      await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      await interaction.reply({
+        content: 'This command can only be used in a server.',
+        flags: MessageFlags.Ephemeral
+      });
       return;
     }
 

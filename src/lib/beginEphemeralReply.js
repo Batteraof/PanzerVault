@@ -1,3 +1,5 @@
+const { MessageFlags } = require('discord.js');
+
 async function beginEphemeralReply(interaction, content = 'Working...') {
   if (interaction.deferred || interaction.replied) {
     return;
@@ -5,7 +7,7 @@ async function beginEphemeralReply(interaction, content = 'Working...') {
 
   await interaction.reply({
     content,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 

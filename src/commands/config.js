@@ -1,5 +1,6 @@
 const {
   ChannelType,
+  MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder
 } = require('discord.js');
@@ -507,7 +508,7 @@ module.exports = {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Config commands can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }

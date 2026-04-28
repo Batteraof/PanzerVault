@@ -37,8 +37,20 @@ const state = {
 const uiState = {
   eventMessage: '',
   eventTone: 'info',
+  botMessage: '',
+  botTone: 'info',
+  levelingMessage: '',
+  levelingTone: 'info',
   communityMessage: '',
   communityTone: 'info',
+  galleryMessage: '',
+  galleryTone: 'info',
+  galleryTagMessage: '',
+  galleryTagTone: 'info',
+  ticketSettingsMessage: '',
+  ticketSettingsTone: 'info',
+  rewardMessage: '',
+  rewardTone: 'info',
   onboardingMessage: '',
   onboardingTone: 'info'
 };
@@ -237,12 +249,36 @@ function setStatus(message, isError = false) {
   element.classList.toggle('is-error', Boolean(isError));
 }
 
+function getBotSettings() {
+  return state.settings?.botSettings || {};
+}
+
 function getCommunitySettings() {
   return state.settings?.communitySettings || {};
 }
 
+function getGallerySettings() {
+  return state.settings?.gallerySettings || {};
+}
+
+function getTicketSettings() {
+  return state.settings?.ticketSettings || {};
+}
+
+function getLevelingSettings() {
+  return state.settings?.levelingSettings || {};
+}
+
+function getRewardRoles() {
+  return state.settings?.rewardRoles || [];
+}
+
+function getGalleryTags() {
+  return state.settings?.galleryTags || [];
+}
+
 function getMetadata() {
-  return state.settings?.metadata || { channels: [], roles: [] };
+  return state.settings?.metadata || { channels: [], categories: [], roles: [] };
 }
 
 function getOnboarding() {
@@ -479,6 +515,102 @@ function renderAnalytics() {
   );
 }
 
+function renderBotSettings() {
+  const bot = getBotSettings();
+  const metadata = getMetadata();
+
+  html('#bot-settings', `
+    <div class="panel-note">Control the first-touch server flow: welcome posts, rules verification, and the role granted after rules acceptance.</div>
+    <form id="bot-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Welcome and rules</h3>
+        <div class="toggle-grid">
+          ${renderToggleControl('welcomeEnabled', 'Welcome messages', 'Send the configured welcome note when members join.', bot.welcome_enabled !== false)}
+          ${renderToggleControl('rulesEnabled', 'Rules verification', 'Require members to accept the rules before receiving the verified role.', bot.rules_enabled === true)}
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Routing</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Welcome channel</span>
+            <select name="welcomeChannelId">${selectOptions(metadata.channels, bot.welcome_channel_id, 'Choose a welcome channel')}</select>
+            <small>New member welcome messages are posted here.</small>
+          </label>
+
+          <label class="field">
+            <span>Rules channel</span>
+            <select name="rulesChannelId">${selectOptions(metadata.channels, bot.rules_channel_id, 'Choose a rules channel')}</select>
+            <small>The rules panel and verification button live here.</small>
+          </label>
+
+          <label class="field field-span-2">
+            <span>Verified role</span>
+            <select name="rulesVerifiedRoleId">${selectOptions(metadata.roles, bot.rules_verified_role_id, 'Choose the verified member role')}</select>
+            <small>Members receive this after accepting the rules.</small>
+          </label>
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.botMessage, uiState.botTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Bot Settings</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#bot-settings-form');
+  if (form) form.addEventListener('submit', handleBotSettingsSubmit);
+}
+
+function renderLevelingSettings() {
+  const leveling = getLevelingSettings();
+  const metadata = getMetadata();
+
+  html('#leveling-settings', `
+    <div class="panel-note">Tune XP sources, level-up announcements, and the info panel channel used by the server panel refresh flow.</div>
+    <form id="leveling-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>XP controls</h3>
+        <div class="toggle-grid">
+          ${renderToggleControl('levelingEnabled', 'Leveling', 'Allow XP to be awarded and levels to move.', leveling.leveling_enabled !== false)}
+          ${renderToggleControl('textXpEnabled', 'Text XP', 'Award XP for eligible chat activity.', leveling.text_xp_enabled !== false)}
+          ${renderToggleControl('voiceXpEnabled', 'Voice XP', 'Award XP for eligible voice time.', leveling.voice_xp_enabled !== false)}
+          ${renderToggleControl('dmLevelupEnabled', 'Level-up DMs', 'Send members a direct message when they level up.', leveling.dm_levelup_enabled === true)}
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Channels</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Level-up channel</span>
+            <select name="levelupChannelId">${selectOptions(metadata.channels, leveling.levelup_channel_id, 'Choose a level-up channel')}</select>
+            <small>Public level-up announcements are posted here.</small>
+          </label>
+
+          <label class="field">
+            <span>Leveling info channel</span>
+            <select name="infoChannelId">${selectOptions(metadata.channels, leveling.info_channel_id, 'Choose a leveling info channel')}</select>
+            <small>The leveling guide panel uses this channel.</small>
+          </label>
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.levelingMessage, uiState.levelingTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Leveling Settings</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#leveling-settings-form');
+  if (form) form.addEventListener('submit', handleLevelingSettingsSubmit);
+}
+
 function renderCommunitySettings() {
   const community = getCommunitySettings();
   const metadata = getMetadata();
@@ -509,6 +641,12 @@ function renderCommunitySettings() {
           </label>
 
           <label class="field">
+            <span>Shared media channel</span>
+            <select name="mediaChannelId">${selectOptions(metadata.channels, community.media_channel_id, 'Choose a media intake channel')}</select>
+            <small>Direct image, video, and link submissions are watched here.</small>
+          </label>
+
+          <label class="field">
             <span>Event channel</span>
             <select name="eventChannelId">${selectOptions(metadata.channels, community.event_channel_id, 'Choose an event channel')}</select>
             <small>New dashboard-created events post their RSVP embeds here.</small>
@@ -526,7 +664,7 @@ function renderCommunitySettings() {
             <small>The monthly spotlight winner and archive live here.</small>
           </label>
 
-          <label class="field field-span-2">
+          <label class="field">
             <span>Moderation log channel</span>
             <select name="moderationLogChannelId">${selectOptions(metadata.channels, community.moderation_log_channel_id, 'Choose a moderation log channel')}</select>
             <small>Soft moderation and staff-facing moderation signals route to this channel.</small>
@@ -545,6 +683,15 @@ function renderCommunitySettings() {
         </div>
       </section>
 
+      <section class="settings-section">
+        <h3>Weekly recap</h3>
+        <label class="field">
+          <span>Next recap note</span>
+          <textarea name="weeklyRecapNote" rows="4" maxlength="300" placeholder="Optional staff note for the next weekly recap.">${escapeHtml(community.weekly_recap_note || '')}</textarea>
+          <small>This note is included once, then cleared after the weekly recap posts.</small>
+        </label>
+      </section>
+
       ${renderStatusMessage(uiState.communityMessage, uiState.communityTone)}
 
       <div class="action-row">
@@ -555,6 +702,204 @@ function renderCommunitySettings() {
 
   const form = qs('#community-settings-form');
   if (form) form.addEventListener('submit', handleCommunitySettingsSubmit);
+}
+
+function renderGallerySettings() {
+  const gallery = getGallerySettings();
+  const tags = getGalleryTags();
+  const metadata = getMetadata();
+
+  html('#gallery-settings', `
+    <div class="panel-note">Set the channels used by gallery submissions and staff-facing gallery moderation logs.</div>
+    <form id="gallery-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Gallery flow</h3>
+        <div class="toggle-grid">
+          ${renderToggleControl('galleryEnabled', 'Gallery submissions', 'Allow members to submit showcase and meme posts.', gallery.gallery_enabled !== false)}
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Channels</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Showcase channel</span>
+            <select name="showcaseChannelId">${selectOptions(metadata.channels, gallery.showcase_channel_id, 'Choose a showcase channel')}</select>
+            <small>Finished showcase submissions post here.</small>
+          </label>
+
+          <label class="field">
+            <span>Meme channel</span>
+            <select name="memeChannelId">${selectOptions(metadata.channels, gallery.meme_channel_id, 'Choose a meme channel')}</select>
+            <small>Finished meme submissions post here.</small>
+          </label>
+
+          <label class="field field-span-2">
+            <span>Gallery log channel</span>
+            <select name="galleryLogChannelId">${selectOptions(metadata.channels, gallery.log_channel_id, 'Choose a gallery log channel')}</select>
+            <small>Moderation actions and gallery audit notes are posted here.</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Approved tags</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>New tag</span>
+            <input type="text" name="tagName" maxlength="60" placeholder="US Tanks, Events, Builds...">
+            <small>Members can only use approved tags during gallery submission.</small>
+          </label>
+
+          <label class="field">
+            <span>Tag category</span>
+            <select name="tagCategory">
+              <option value="all">All gallery categories</option>
+              <option value="showcase">Showcase only</option>
+              <option value="meme">Meme only</option>
+            </select>
+            <small>Use a category restriction only when a tag should be limited.</small>
+          </label>
+        </div>
+
+        <div class="tag-admin-list">
+          ${tags.map(tag => {
+            const category = Array.isArray(tag.allowed_categories) && tag.allowed_categories.length
+              ? tag.allowed_categories.join(', ')
+              : 'all';
+            return `
+              <div class="tag-admin-row">
+                <div>
+                  <strong>${escapeHtml(tag.tag_name)}</strong>
+                  <span>${escapeHtml(category)}</span>
+                </div>
+                <button class="button-secondary compact-button gallery-tag-remove-button" type="button" data-tag-name="${escapeHtml(tag.normalized_name || tag.tag_name)}">Remove</button>
+              </div>
+            `;
+          }).join('') || renderEmpty('No gallery tags configured yet.', 'Default tags will appear once gallery setup runs, or you can add one here.')}
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.galleryMessage, uiState.galleryTone)}
+      ${renderStatusMessage(uiState.galleryTagMessage, uiState.galleryTagTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Gallery Settings</button>
+        <button class="button-secondary" type="button" id="gallery-tag-add-button">Add Tag</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#gallery-settings-form');
+  if (form) form.addEventListener('submit', handleGallerySettingsSubmit);
+  const addTagButton = qs('#gallery-tag-add-button');
+  if (addTagButton) addTagButton.addEventListener('click', handleGalleryTagAddClick);
+  document.querySelectorAll('.gallery-tag-remove-button').forEach(button => {
+    button.addEventListener('click', handleGalleryTagRemoveClick);
+  });
+}
+
+function renderTicketSettings() {
+  const tickets = getTicketSettings();
+  const metadata = getMetadata();
+
+  html('#ticket-settings', `
+    <div class="panel-note">Configure where ticket channels are created, where ticket audit logs go, and which staff role can see new tickets.</div>
+    <form id="ticket-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Ticket flow</h3>
+        <div class="toggle-grid">
+          ${renderToggleControl('ticketsEnabled', 'Tickets', 'Allow members to open support, report, application, and event issue tickets.', tickets.tickets_enabled !== false)}
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Routing and staff</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Ticket category</span>
+            <select name="ticketCategoryId">${selectOptions(metadata.categories, tickets.category_channel_id, 'Choose a ticket category')}</select>
+            <small>New private ticket channels are created under this Discord category.</small>
+          </label>
+
+          <label class="field">
+            <span>Ticket log channel</span>
+            <select name="ticketLogChannelId">${selectOptions(metadata.channels, tickets.log_channel_id, 'Choose a ticket log channel')}</select>
+            <small>Open, close, and escalation logs post here.</small>
+          </label>
+
+          <label class="field field-span-2">
+            <span>Support role</span>
+            <select name="supportRoleId">${selectOptions(metadata.roles, tickets.support_role_id, 'Choose the support staff role')}</select>
+            <small>This role receives access to new ticket channels.</small>
+          </label>
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.ticketSettingsMessage, uiState.ticketSettingsTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Ticket Settings</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#ticket-settings-form');
+  if (form) form.addEventListener('submit', handleTicketSettingsSubmit);
+}
+
+function renderRewardSettings() {
+  const rewards = getRewardRoles();
+  const metadata = getMetadata();
+
+  html('#reward-settings', `
+    <div class="panel-note">Add automatic level reward roles. The bot will grant these roles when a member reaches the configured level.</div>
+    <form id="reward-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Add or update reward</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Reward role</span>
+            <select name="roleId" required>${selectOptions(metadata.roles, '', 'Choose a reward role')}</select>
+            <small>Pick the role the bot should grant automatically.</small>
+          </label>
+
+          <label class="field">
+            <span>Required level</span>
+            <input type="number" name="requiredLevel" min="1" max="500" step="1" value="10" required>
+            <small>Members receive the role after reaching this level.</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Active rewards</h3>
+        <div class="reward-list">
+          ${rewards.map(reward => `
+            <div class="reward-row">
+              <div>
+                <strong>${escapeHtml(labelFor(metadata.roles, reward.role_id, `Role ${reward.role_id}`))}</strong>
+                <span>Level ${escapeHtml(formatCount(reward.required_level))}</span>
+              </div>
+              <button class="button-secondary compact-button reward-remove-button" type="button" data-role-id="${escapeHtml(reward.role_id)}">Remove</button>
+            </div>
+          `).join('') || renderEmpty('No reward roles configured yet.', 'Choose a role and required level above to start automation.')}
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.rewardMessage, uiState.rewardTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Reward Role</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#reward-settings-form');
+  if (form) form.addEventListener('submit', handleRewardSettingsSubmit);
+  document.querySelectorAll('.reward-remove-button').forEach(button => {
+    button.addEventListener('click', handleRewardRemoveClick);
+  });
 }
 
 function renderOnboardingSettings() {
@@ -620,7 +965,12 @@ function renderOnboardingSettings() {
 
 function renderSettings() {
   renderReadiness();
+  renderBotSettings();
+  renderLevelingSettings();
   renderCommunitySettings();
+  renderGallerySettings();
+  renderTicketSettings();
+  renderRewardSettings();
   renderOnboardingSettings();
 }
 
@@ -645,6 +995,12 @@ async function apiRequest(url, options = {}) {
 
 async function fetchJson(url) {
   return apiRequest(url);
+}
+
+async function refreshSettingsView() {
+  state.settings = await fetchJson('/api/settings');
+  renderEvents();
+  renderSettings();
 }
 
 async function handleEventCreateSubmit(event) {
@@ -691,6 +1047,91 @@ async function handleEventCreateSubmit(event) {
   }
 }
 
+async function handleBotSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.botMessage = 'Saving bot settings...';
+  uiState.botTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/bot', {
+      method: 'PUT',
+      body: JSON.stringify({
+        welcomeEnabled: form.elements.welcomeEnabled.checked,
+        rulesEnabled: form.elements.rulesEnabled.checked,
+        welcomeChannelId: form.elements.welcomeChannelId.value,
+        rulesChannelId: form.elements.rulesChannelId.value,
+        rulesVerifiedRoleId: form.elements.rulesVerifiedRoleId.value
+      })
+    });
+
+    uiState.botMessage = 'Bot settings saved.';
+    uiState.botTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.botMessage = error.message;
+    uiState.botTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#bot-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleLevelingSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.levelingMessage = 'Saving leveling settings...';
+  uiState.levelingTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/leveling', {
+      method: 'PUT',
+      body: JSON.stringify({
+        levelingEnabled: form.elements.levelingEnabled.checked,
+        textXpEnabled: form.elements.textXpEnabled.checked,
+        voiceXpEnabled: form.elements.voiceXpEnabled.checked,
+        dmLevelupEnabled: form.elements.dmLevelupEnabled.checked,
+        levelupChannelId: form.elements.levelupChannelId.value,
+        infoChannelId: form.elements.infoChannelId.value
+      })
+    });
+
+    uiState.levelingMessage = 'Leveling settings saved.';
+    uiState.levelingTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.levelingMessage = error.message;
+    uiState.levelingTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#leveling-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
 async function handleCommunitySettingsSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -714,11 +1155,13 @@ async function handleCommunitySettingsSubmit(event) {
       weeklyRecapEnabled: form.elements.weeklyRecapEnabled.checked,
       softModerationEnabled: form.elements.softModerationEnabled.checked,
       communityChannelId: form.elements.communityChannelId.value,
+      mediaChannelId: form.elements.mediaChannelId.value,
       eventChannelId: form.elements.eventChannelId.value,
       videoChannelId: form.elements.videoChannelId.value,
       spotlightChannelId: form.elements.spotlightChannelId.value,
       moderationLogChannelId: form.elements.moderationLogChannelId.value,
-      spotlightRoleId: form.elements.spotlightRoleId.value
+      spotlightRoleId: form.elements.spotlightRoleId.value,
+      weeklyRecapNote: form.elements.weeklyRecapNote.value
     };
 
     await apiRequest('/api/settings/community', {
@@ -726,13 +1169,9 @@ async function handleCommunitySettingsSubmit(event) {
       body: JSON.stringify(payload)
     });
 
-    const refreshedSettings = await fetchJson('/api/settings');
-    state.settings = refreshedSettings;
-
     uiState.communityMessage = 'Community settings saved.';
     uiState.communityTone = 'success';
-    renderEvents();
-    renderSettings();
+    await refreshSettingsView();
   } catch (error) {
     console.error(error);
     uiState.communityMessage = error.message;
@@ -744,6 +1183,204 @@ async function handleCommunitySettingsSubmit(event) {
       refreshedButton.disabled = false;
       refreshedButton.textContent = originalLabel;
     }
+  }
+}
+
+async function handleGallerySettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.galleryMessage = 'Saving gallery settings...';
+  uiState.galleryTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/gallery', {
+      method: 'PUT',
+      body: JSON.stringify({
+        galleryEnabled: form.elements.galleryEnabled.checked,
+        showcaseChannelId: form.elements.showcaseChannelId.value,
+        memeChannelId: form.elements.memeChannelId.value,
+        galleryLogChannelId: form.elements.galleryLogChannelId.value
+      })
+    });
+
+    uiState.galleryMessage = 'Gallery settings saved.';
+    uiState.galleryTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.galleryMessage = error.message;
+    uiState.galleryTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#gallery-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleGalleryTagAddClick() {
+  const form = qs('#gallery-settings-form');
+  if (!form) return;
+
+  uiState.galleryTagMessage = 'Adding gallery tag...';
+  uiState.galleryTagTone = 'info';
+  renderSettings();
+
+  try {
+    await apiRequest('/api/settings/gallery-tags', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: form.elements.tagName.value,
+        category: form.elements.tagCategory.value
+      })
+    });
+
+    uiState.galleryTagMessage = 'Gallery tag saved.';
+    uiState.galleryTagTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.galleryTagMessage = error.message;
+    uiState.galleryTagTone = 'error';
+    renderSettings();
+  }
+}
+
+async function handleGalleryTagRemoveClick(event) {
+  const tagName = event.currentTarget.dataset.tagName;
+  if (!tagName) return;
+
+  uiState.galleryTagMessage = 'Removing gallery tag...';
+  uiState.galleryTagTone = 'info';
+  renderSettings();
+
+  try {
+    await apiRequest(`/api/settings/gallery-tags/${encodeURIComponent(tagName)}`, {
+      method: 'DELETE'
+    });
+
+    uiState.galleryTagMessage = 'Gallery tag removed.';
+    uiState.galleryTagTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.galleryTagMessage = error.message;
+    uiState.galleryTagTone = 'error';
+    renderSettings();
+  }
+}
+
+async function handleTicketSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.ticketSettingsMessage = 'Saving ticket settings...';
+  uiState.ticketSettingsTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/tickets', {
+      method: 'PUT',
+      body: JSON.stringify({
+        ticketsEnabled: form.elements.ticketsEnabled.checked,
+        ticketCategoryId: form.elements.ticketCategoryId.value,
+        ticketLogChannelId: form.elements.ticketLogChannelId.value,
+        supportRoleId: form.elements.supportRoleId.value
+      })
+    });
+
+    uiState.ticketSettingsMessage = 'Ticket settings saved.';
+    uiState.ticketSettingsTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.ticketSettingsMessage = error.message;
+    uiState.ticketSettingsTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#ticket-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleRewardSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.rewardMessage = 'Saving reward role...';
+  uiState.rewardTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/rewards', {
+      method: 'POST',
+      body: JSON.stringify({
+        roleId: form.elements.roleId.value,
+        requiredLevel: form.elements.requiredLevel.value
+      })
+    });
+
+    uiState.rewardMessage = 'Reward role saved.';
+    uiState.rewardTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.rewardMessage = error.message;
+    uiState.rewardTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#reward-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handleRewardRemoveClick(event) {
+  const button = event.currentTarget;
+  const roleId = button.dataset.roleId;
+  if (!roleId) return;
+
+  uiState.rewardMessage = 'Removing reward role...';
+  uiState.rewardTone = 'info';
+  renderSettings();
+
+  try {
+    await apiRequest(`/api/settings/rewards/${encodeURIComponent(roleId)}`, {
+      method: 'DELETE'
+    });
+
+    uiState.rewardMessage = 'Reward role removed.';
+    uiState.rewardTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.rewardMessage = error.message;
+    uiState.rewardTone = 'error';
+    renderSettings();
   }
 }
 
@@ -778,13 +1415,9 @@ async function handleOnboardingSettingsSubmit(event) {
       })
     });
 
-    const refreshedSettings = await fetchJson('/api/settings');
-    state.settings = refreshedSettings;
-
     uiState.onboardingMessage = 'Onboarding roles saved.';
     uiState.onboardingTone = 'success';
-    renderEvents();
-    renderSettings();
+    await refreshSettingsView();
   } catch (error) {
     console.error(error);
     uiState.onboardingMessage = error.message;

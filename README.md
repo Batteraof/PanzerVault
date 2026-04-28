@@ -292,6 +292,7 @@ Main config groups:
 - `/config rewards ...`
 - `/config tickets ...`
 - `/config rules ...`
+- `/dashboard`
 
 Examples:
 
@@ -306,6 +307,7 @@ Examples:
 - `/config community event-channel`
 - `/config community moderation-log-channel`
 - `/config leveling info-channel`
+- `/dashboard`
 
 ## Deploy Update Flow
 
@@ -325,16 +327,30 @@ Refresh Discord with `Ctrl + R` after command changes so stale command entries d
 
 The admin dashboard is a separate lightweight Express process.
 
+By default it binds to `127.0.0.1`, so it is intended for local access, SSH tunnels, or a reverse proxy you control. Set `DASHBOARD_PASSWORD` before exposing it beyond the machine.
+
+Admins with Manage Server can run `/dashboard` in Discord to receive a private dashboard link. Set `DASHBOARD_URL` to the public reverse-proxy URL, or the link will stay local-only.
+
 Manual start:
 
 ```bash
 npm run dashboard
 ```
 
+Dashboard environment:
+
+```bash
+DASHBOARD_PORT=3000
+DASHBOARD_HOST=127.0.0.1
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=change_this_before_exposing
+DASHBOARD_URL=https://dashboard.example.com
+```
+
 Health check:
 
 ```bash
-curl http://localhost:3000/api/health
+curl -u admin:change_this_before_exposing http://localhost:3000/api/health
 ```
 
 Recommended `systemd` service example:
