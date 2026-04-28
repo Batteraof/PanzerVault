@@ -9,10 +9,32 @@ const {
   TextInputStyle
 } = require('discord.js');
 const eventService = require('../../community/services/eventService');
-const { parseLocalDateTimeString } = require('../../community/utils/dateUtils');
+const { parseDateTimeInTimeZone, parseLocalDateTimeString } = require('../../community/utils/dateUtils');
 
 const PREFIX = 'event_create';
 const drafts = new Map();
+const EVENT_TEMPLATES = {
+  casual: {
+    title: 'Casual Tank Session',
+    durationMinutes: 90,
+    description: 'Casual squad-up session. RSVP if you want a ping before we roll out.'
+  },
+  training: {
+    title: 'Training Night',
+    durationMinutes: 60,
+    description: 'Practice session for tactics, positioning, callouts, and new-player help.'
+  },
+  match: {
+    title: 'Clan Match',
+    durationMinutes: 120,
+    description: 'Organized match. Please RSVP early so staff can plan teams and reserves.'
+  },
+  operation: {
+    title: 'Community Operation',
+    durationMinutes: 120,
+    description: 'Planned community operation with RSVP, reminders, and check-in XP.'
+  }
+};
 
 function owns(customId) {
   return String(customId || '').startsWith(`${PREFIX}:`);
@@ -27,18 +49,22 @@ function parse(customIdValue) {
   return { action, draftId };
 }
 
-function buildDetailsModal(userId) {
+function applyValue(input, value) {
+  return value ? input.setValue(String(value)) : input;
+}
+
+function buildDetailsModal(userId, defaults = {}) {
   return new ModalBuilder()
     .setCustomId(customId('details_modal', userId))
     .setTitle('Create Event')
     .addComponents(
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
+        applyValue(new TextInputBuilder()
           .setCustomId('title')
           .setLabel('Title')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
-          .setMaxLength(120)
+          .setMaxLength(120), defaults.title)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
@@ -49,20 +75,20 @@ function buildDetailsModal(userId) {
           .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
+        applyValue(new TextInputBuilder()
           .setCustomId('duration_minutes')
           .setLabel('Duration Minutes')
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('90')
-          .setRequired(false)
+          .setRequired(false), defaults.durationMinutes)
       ),
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
+        applyValue(new TextInputBuilder()
           .setCustomId('description')
           .setLabel('Description')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(false)
-          .setMaxLength(500)
+          .setMaxLength(500), defaults.description)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
@@ -82,6 +108,7 @@ function buildDraftPayload(draft, notice = null) {
     .setDescription(draft.description || 'No description provided.')
     .addFields(
       { name: 'Starts', value: `<t:${timestamp}:F>\n<t:${timestamp}:R>`, inline: true },
+      { name: 'Timezone', value: draft.timeZone || 'Server local time', inline: true },
       { name: 'Duration', value: draft.durationMinutes ? `${draft.durationMinutes} minutes` : 'Not set', inline: true },
       { name: 'XP', value: 'RSVP: 5\nAttendance: 25\nBonuses: enabled', inline: true }
     )
@@ -111,15 +138,35 @@ function buildDraftPayload(draft, notice = null) {
 }
 
 async function start(interaction) {
-  await interaction.showModal(buildDetailsModal(interaction.user.id));
+  const templateKey = interaction.options.getString('template') || null;
+  const timeZone = interaction.options.getString('timezone') || null;
+  const defaults = {
+    ...(EVENT_TEMPLATES[templateKey] || {}),
+    timeZone
+  };
+
+  drafts.set(interaction.user.id, {
+    id: interaction.user.id,
+    guildId: interaction.guildId,
+    userId: interaction.user.id,
+    templateKey,
+    timeZone
+  });
+
+  await interaction.showModal(buildDetailsModal(interaction.user.id, defaults));
 }
 
 async function handleDetailsModal(interaction) {
   const startsAtInput = interaction.fields.getTextInputValue('starts_at').trim();
-  const startsAt = parseLocalDateTimeString(startsAtInput);
+  const existingDraft = drafts.get(interaction.user.id) || {};
+  const startsAt = existingDraft.timeZone
+    ? parseDateTimeInTimeZone(startsAtInput, existingDraft.timeZone)
+    : parseLocalDateTimeString(startsAtInput);
   if (!startsAt) {
     await interaction.reply({
-      content: 'Use `YYYY-MM-DD HH:MM` for the event time.',
+      content: existingDraft.timeZone
+        ? `Use \`YYYY-MM-DD HH:MM\` for the event time. I could not read that time in ${existingDraft.timeZone}.`
+        : 'Use `YYYY-MM-DD HH:MM` for the event time.',
       flags: MessageFlags.Ephemeral
     });
     return true;
@@ -132,6 +179,8 @@ async function handleDetailsModal(interaction) {
     id: interaction.user.id,
     guildId: interaction.guildId,
     userId: interaction.user.id,
+    templateKey: existingDraft.templateKey || null,
+    timeZone: existingDraft.timeZone || null,
     title: interaction.fields.getTextInputValue('title').trim(),
     startsAt,
     endsAt,

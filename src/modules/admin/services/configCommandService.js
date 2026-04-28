@@ -9,6 +9,7 @@ const ticketSettingsService = require('../../tickets/services/ticketSettingsServ
 const serverPanelService = require('../../config/services/serverPanelService');
 const communitySettingsService = require('../../config/services/communitySettingsService');
 const onboardingRoleService = require('../../config/services/onboardingRoleService');
+const readinessService = require('../../system/services/readinessService');
 const { setupRolePanel } = require('../../../lib/rolePanel');
 const userRepository = require('../../../db/repositories/userRepository');
 
@@ -450,10 +451,60 @@ async function handleRules(interaction) {
   return 'Unknown rules config action.';
 }
 
+function statusIcon(status) {
+  if (status === 'ok') return '[OK]';
+  if (status === 'warn') return '[WARN]';
+  if (status === 'error') return '[FIX]';
+  return '[OFF]';
+}
+
+function formatReadinessReport(report) {
+  const summary = report.summary;
+  const lines = [
+    `Config check: ${summary.okCount} ready, ${summary.warnCount} attention, ${summary.errorCount} missing, ${summary.offCount} disabled.`
+  ];
+
+  for (const section of report.sections) {
+    if (section.status === 'ok') continue;
+
+    lines.push('', `${statusIcon(section.status)} ${section.title}: ${section.summary}`);
+
+    const actionableItems = section.items.filter(item => item.status === 'warn' || item.status === 'error');
+    for (const item of actionableItems.slice(0, 4)) {
+      lines.push(`- ${item.label}: ${item.message}`);
+    }
+
+    if (actionableItems.length > 4) {
+      lines.push(`- ${actionableItems.length - 4} more item${actionableItems.length - 4 === 1 ? '' : 's'} in this section.`);
+    }
+  }
+
+  if (lines.length === 1) {
+    lines.push('', 'Everything important is configured and visible to the bot.');
+  }
+
+  const message = lines.join('\n');
+  return message.length <= 1900
+    ? message
+    : `${message.slice(0, 1850)}\n\nReport trimmed. Fix the items above and run /config check again.`;
+}
+
+async function handleCheck(interaction) {
+  const report = await readinessService.collectGuildReadinessFromClient(
+    interaction.client,
+    interaction.guild.id
+  );
+
+  return formatReadinessReport(report);
+}
+
 async function execute(interaction) {
   assertManageGuild(interaction);
 
-  const group = interaction.options.getSubcommandGroup();
+  const group = interaction.options.getSubcommandGroup(false);
+  const subcommand = interaction.options.getSubcommand(false);
+
+  if (!group && subcommand === 'check') return handleCheck(interaction);
 
   if (group === 'welcome') return handleWelcome(interaction);
   if (group === 'leveling') return handleLeveling(interaction);

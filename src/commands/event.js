@@ -13,6 +13,31 @@ module.exports = {
       subcommand
         .setName('create')
         .setDescription('Create a new event with a guided modal.')
+        .addStringOption(option =>
+          option
+            .setName('template')
+            .setDescription('Start with a common event template.')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Casual Tank Session', value: 'casual' },
+              { name: 'Training Night', value: 'training' },
+              { name: 'Clan Match', value: 'match' },
+              { name: 'Community Operation', value: 'operation' }
+            )
+        )
+        .addStringOption(option =>
+          option
+            .setName('timezone')
+            .setDescription('Timezone for the typed start time.')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Europe/Amsterdam', value: 'Europe/Amsterdam' },
+              { name: 'Europe/London', value: 'Europe/London' },
+              { name: 'UTC', value: 'UTC' },
+              { name: 'America/New_York', value: 'America/New_York' },
+              { name: 'America/Los_Angeles', value: 'America/Los_Angeles' }
+            )
+        )
     )
     .addSubcommand(subcommand =>
       subcommand

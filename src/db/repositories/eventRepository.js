@@ -13,11 +13,12 @@ async function createEvent(data, client) {
       title,
       description,
       external_url,
+      time_zone,
       starts_at,
       created_by,
       message_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
     `,
     [
@@ -26,6 +27,7 @@ async function createEvent(data, client) {
       data.title,
       data.description || null,
       data.externalUrl || null,
+      data.timeZone || null,
       data.startsAt,
       data.createdBy,
       data.messageId || null
@@ -39,6 +41,7 @@ async function updateEvent(guildId, eventId, updates, client) {
   const allowed = [
     'message_id',
     'status',
+    'time_zone',
     'reminder_3d_sent_at',
     'reminder_1d_sent_at',
     'cancelled_at',
@@ -190,6 +193,21 @@ async function getRsvpCounts(eventId, client) {
   };
 }
 
+async function listRsvpsByStatuses(eventId, statuses, client) {
+  const result = await executor(client).query(
+    `
+    SELECT *
+    FROM event_rsvps
+    WHERE event_id = $1
+      AND status = ANY($2)
+    ORDER BY updated_at ASC
+    `,
+    [eventId, statuses]
+  );
+
+  return result.rows;
+}
+
 async function getUserRsvp(eventId, userId, client) {
   const result = await executor(client).query(
     `
@@ -322,6 +340,7 @@ module.exports = {
   listUpcoming,
   upsertRsvp,
   getRsvpCounts,
+  listRsvpsByStatuses,
   getUserRsvp,
   upsertAttendance,
   upsertEventStreak,

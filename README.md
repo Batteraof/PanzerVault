@@ -228,10 +228,13 @@ The bot keeps a pinned guide message in the video channel when it is configured.
 
 Staff create events with `/event create`.
 
+`/event create` supports templates for casual sessions, training nights, clan matches, and community operations. Staff can also choose the timezone used for the typed start time.
+
 Each event post includes:
 
 - event title
 - date/time
+- timezone when one was selected
 - optional description
 - optional external link
 - RSVP buttons:
@@ -242,7 +245,7 @@ Each event post includes:
 Reminder cadence:
 
 - 3 days before
-- 1 day before
+- 1 day before, with a direct ping for members marked Going
 
 RSVP is shown publicly as counts only.
 
@@ -312,6 +315,7 @@ Main config groups:
 
 Examples:
 
+- `/config check`
 - `/config rules channel`
 - `/config rules verified-role`
 - `/config onboarding skill-role`

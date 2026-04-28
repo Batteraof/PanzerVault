@@ -59,6 +59,11 @@ function buildEventEmbed(event, counts) {
         inline: true
       },
       {
+        name: 'Timezone',
+        value: event.time_zone || 'Server local time',
+        inline: true
+      },
+      {
         name: 'RSVP',
         value: `Going: ${counts.going_count}\nMaybe: ${counts.maybe_count}\nNot Going: ${counts.not_going_count}`,
         inline: true
@@ -184,6 +189,7 @@ async function createEvent(interaction) {
     description: interaction.options.getString('description') || null,
     externalUrl: interaction.options.getString('link'),
     startsAt,
+    timeZone: null,
     createdBy: interaction.user.id
   });
 }
@@ -218,6 +224,7 @@ async function createEventPrepared(interaction, data) {
     title: data.title,
     description: data.description || null,
     externalUrl: validateLink(data.externalUrl),
+    timeZone: data.timeZone || null,
     startsAt,
     createdBy: data.createdBy || interaction.user.id
   });
@@ -228,6 +235,7 @@ async function createEventPrepared(interaction, data) {
   };
 
   if (data.endsAt) updates.ends_at = data.endsAt;
+  if (data.timeZone) updates.time_zone = data.timeZone;
   if (data.attendanceChannelId) updates.attendance_channel_id = data.attendanceChannelId;
   if (Number.isFinite(Number(data.xpRsvp))) updates.xp_rsvp = Number(data.xpRsvp);
   if (Number.isFinite(Number(data.xpAttendance))) updates.xp_attendance = Number(data.xpAttendance);
@@ -348,9 +356,18 @@ async function sendReminder(client, event, label) {
     lines.push(`[Open link](${event.external_url})`);
   }
 
+  const rsvps = label === '1 day'
+    ? await eventRepository.listRsvpsByStatuses(event.id, [RSVP_STATES.GOING]).catch(() => [])
+    : [];
+  const userIds = [...new Set(rsvps.map(row => String(row.user_id)).filter(Boolean))].slice(0, 40);
+
+  if (userIds.length > 0) {
+    lines.unshift(`Heads up ${userIds.map(userId => `<@${userId}>`).join(' ')}`);
+  }
+
   await channel.send({
     content: lines.join('\n'),
-    allowedMentions: { parse: [] }
+    allowedMentions: { users: userIds }
   }).catch(() => null);
 }
 

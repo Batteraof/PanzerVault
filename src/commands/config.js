@@ -94,6 +94,11 @@ module.exports = {
     .setName('config')
     .setDescription('Admin configuration for bot systems.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('check')
+        .setDescription('Check which required bot settings are missing or broken.')
+    )
     .addSubcommandGroup(group =>
       group
         .setName('welcome')
@@ -513,7 +518,9 @@ module.exports = {
       return;
     }
 
-    await beginEphemeralReply(interaction, 'Updating config...');
+    const subcommand = interaction.options.getSubcommand(false);
+    const action = subcommand === 'check' ? 'Checking config...' : 'Updating config...';
+    await beginEphemeralReply(interaction, action);
 
     try {
       const message = await configCommandService.execute(interaction);
