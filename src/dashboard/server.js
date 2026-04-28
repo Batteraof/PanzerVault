@@ -18,6 +18,7 @@ const ticketSettingsService = require('../modules/tickets/services/ticketSetting
 const rewardRoleService = require('../modules/rewards/services/rewardRoleService');
 const readinessService = require('../modules/system/services/readinessService');
 const eventService = require('../modules/community/services/eventService');
+const { buildWelcomePayload } = require('../lib/welcomeMessage');
 const { parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
 
 const app = express();
@@ -518,6 +519,15 @@ function buildTicketUpdates(body = {}) {
   return updates;
 }
 
+function serializeMessagePayload(payload) {
+  return {
+    ...payload,
+    embeds: (payload.embeds || []).map(embed => typeof embed.toJSON === 'function' ? embed.toJSON() : embed),
+    components: (payload.components || []).map(row => typeof row.toJSON === 'function' ? row.toJSON() : row),
+    allowed_mentions: { parse: [] }
+  };
+}
+
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
@@ -893,6 +903,48 @@ app.put('/api/settings/bot', async (req, res, next) => {
     const updates = buildBotUpdates(req.body);
     const settings = await botSettingsRepository.updateSettings(guildId, updates);
     res.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/bot/test-welcome', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const settings = await botSettingsService.ensureGuildSettings(guildId);
+    const channelId = settings.welcome_channel_id || process.env.WELCOME_CHANNEL_ID;
+    if (!channelId) {
+      throw badRequest('Choose a welcome channel before sending a test welcome.');
+    }
+
+    const guildMetadata = await discordRequest(`/guilds/${guildId}?with_counts=true`);
+    const botUser = await discordRequest('/users/@me');
+    const fakeMember = {
+      guild: {
+        id: guildId,
+        name: guildMetadata.name || 'the server',
+        memberCount: guildMetadata.approximate_member_count || 0
+      },
+      user: {
+        displayAvatarURL: () => botUser.avatar
+          ? `https://cdn.discordapp.com/avatars/${botUser.id}/${botUser.avatar}.png?size=256`
+          : 'https://cdn.discordapp.com/embed/avatars/0.png'
+      },
+      toString: () => '@new member'
+    };
+
+    const payload = buildWelcomePayload(fakeMember, {
+      guildName: guildMetadata.name || 'the server',
+      memberCount: guildMetadata.approximate_member_count || 'many',
+      mention: '@new member'
+    });
+
+    const message = await discordRequest(`/channels/${channelId}/messages`, {
+      method: 'POST',
+      body: serializeMessagePayload(payload)
+    });
+
+    res.status(201).json({ messageId: message.id, channelId });
   } catch (error) {
     next(error);
   }

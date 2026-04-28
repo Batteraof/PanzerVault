@@ -44,6 +44,37 @@ async function setMemberTeamRole(member, teamOptionKey) {
   };
 }
 
+async function clearMemberTeamRoles(member) {
+  const botMember = member.guild.members.me;
+  const teamRoles = await teamRoleService.listTeamRoles(member.guild.id);
+
+  if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+    return { ok: false, message: 'I do not have permission to manage roles.' };
+  }
+
+  const guildRoles = teamRoles
+    .map(role => member.guild.roles.cache.get(role.role_id))
+    .filter(Boolean);
+
+  const removableRoles = guildRoles.filter(role => member.roles.cache.has(role.id));
+  if (removableRoles.length === 0) {
+    return { ok: true, removed: [] };
+  }
+
+  for (const role of removableRoles) {
+    if (botMember.roles.highest.comparePositionTo(role) <= 0) {
+      return { ok: false, message: `My role is too low to remove ${role}.` };
+    }
+  }
+
+  for (const role of removableRoles) {
+    await member.roles.remove(role);
+  }
+
+  return { ok: true, removed: removableRoles };
+}
+
 module.exports = {
+  clearMemberTeamRoles,
   setMemberTeamRole
 };
