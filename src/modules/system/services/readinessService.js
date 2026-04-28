@@ -186,7 +186,7 @@ function buildOnboardingSection(communitySettings, skillRoles, regionRoles, meta
       roleItem(
         metadata,
         communitySettings?.coach_role_id,
-        'Coach role',
+        'Helper role',
         {
           missingStatus: 'warn',
           missingMessage: 'Optional. Configure this if Medium and Expert members should opt into being helper contacts.'
@@ -215,7 +215,7 @@ function buildOnboardingSection(communitySettings, skillRoles, regionRoles, meta
     roleItem(
       metadata,
       communitySettings?.coach_role_id,
-      'Coach role',
+      'Helper role',
       {
         missingStatus: 'warn',
         missingMessage: 'Optional, but recommended so Beginners can find Medium and Expert helpers.'

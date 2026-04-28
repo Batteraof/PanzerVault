@@ -1,4 +1,12 @@
-const { ActionRowBuilder, MessageFlags, PermissionsBitField } = require('discord.js');
+const {
+  ActionRowBuilder,
+  EmbedBuilder,
+  MessageFlags,
+  ModalBuilder,
+  PermissionsBitField,
+  TextInputBuilder,
+  TextInputStyle
+} = require('discord.js');
 const config = require('../../config');
 const customIds = require('../../lib/customIds');
 const {
@@ -18,10 +26,21 @@ function isCoachEligible(skillOptionKey) {
 function isRoleButton(customId) {
   return [
     customIds.JOIN_INFO,
+    customIds.INTRODUCE_SELF,
+    customIds.SITE_INFO,
     customIds.ROLES_MENU,
     customIds.AGREE_RULES,
     customIds.COACH_TOGGLE
   ].includes(customId);
+}
+
+function parseChannelIdFromUrl(url = '') {
+  const match = String(url).match(/\/channels\/\d+\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+function getGeneralChannelId() {
+  return config.channels.generalChannelId || parseChannelIdFromUrl(config.channels.generalUrl);
 }
 
 function isRoleSelect(customId) {
@@ -99,7 +118,7 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
   }
 
   if (groupKey === 'skill' && isCoachEligible(selected.option_key) && communitySettings.coach_role_id) {
-    followUp += `\nYou can also tap **Toggle Coach Role** if you want beginners to know you are available to help.`;
+    followUp += `\nYou can also tap **Toggle Helper Role** if you want beginners to know you are available to help.`;
   }
 
   await respondEphemeral(interaction, followUp);
@@ -111,7 +130,7 @@ async function handleCoachToggle(interaction) {
   const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
   const coachRoleId = communitySettings.coach_role_id;
   if (!coachRoleId) {
-    await respondEphemeral(interaction, 'Coach mode is not configured yet.');
+    await respondEphemeral(interaction, 'The helper role is not configured yet.');
     return true;
   }
 
@@ -119,14 +138,14 @@ async function handleCoachToggle(interaction) {
   const selectedSkill = skillRoles.find(role => interaction.member.roles.cache.has(role.role_id));
 
   if (!selectedSkill || !isCoachEligible(selectedSkill.option_key)) {
-    await respondEphemeral(interaction, 'Only members with the Medium or Expert role can opt into the coach role.');
+    await respondEphemeral(interaction, 'Only members with the Medium or Expert role can opt into the helper role.');
     return true;
   }
 
   const coachRole = interaction.guild.roles.cache.get(coachRoleId);
   const botMember = interaction.guild.members.me;
   if (!coachRole) {
-    await respondEphemeral(interaction, 'The coach role no longer exists.');
+    await respondEphemeral(interaction, 'The helper role no longer exists.');
     return true;
   }
 
@@ -136,34 +155,79 @@ async function handleCoachToggle(interaction) {
   }
 
   if (botMember.roles.highest.comparePositionTo(coachRole) <= 0) {
-    await respondEphemeral(interaction, 'My role is too low to manage the coach role.');
+    await respondEphemeral(interaction, 'My role is too low to manage the helper role.');
     return true;
   }
 
   if (interaction.member.roles.cache.has(coachRole.id)) {
     await interaction.member.roles.remove(coachRole);
-    await respondEphemeral(interaction, `Coach mode disabled. You no longer have ${coachRole}.`);
+    await respondEphemeral(interaction, `Helper role disabled. You no longer have ${coachRole}.`);
     return true;
   }
 
   await interaction.member.roles.add(coachRole);
-  await respondEphemeral(interaction, `Coach mode enabled. You now have ${coachRole} so beginners know they can ask you for help.`);
+  await respondEphemeral(interaction, `Helper role enabled. You now have ${coachRole} so beginners know they can ask you for help.`);
+  return true;
+}
+
+async function showIntroduceSelfModal(interaction) {
+  const modal = new ModalBuilder()
+    .setCustomId(customIds.INTRODUCE_SELF_MODAL)
+    .setTitle('Tell us about yourself');
+
+  const input = new TextInputBuilder()
+    .setCustomId(customIds.INTRODUCE_SELF_INPUT)
+    .setLabel('What should the community know about you?')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true)
+    .setMinLength(10)
+    .setMaxLength(700)
+    .setPlaceholder('Your name/nickname, where you play from, what you enjoy in Hell Let Loose, or anything you want to share.');
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+  await interaction.showModal(modal);
+  return true;
+}
+
+async function handleIntroduceSelfSubmit(interaction) {
+  const generalChannelId = getGeneralChannelId();
+  const channel = generalChannelId
+    ? interaction.guild.channels.cache.get(generalChannelId) || await interaction.guild.channels.fetch(generalChannelId).catch(() => null)
+    : null;
+
+  if (!channel || !channel.isTextBased()) {
+    await respondEphemeral(interaction, 'I could not find the general channel for introductions. Please tell staff.');
+    return true;
+  }
+
+  const introduction = interaction.fields.getTextInputValue(customIds.INTRODUCE_SELF_INPUT).trim();
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('New Introduction')
+    .setDescription(introduction)
+    .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
+    .setFooter({ text: 'Wave back to welcome them.' })
+    .setTimestamp();
+
+  const message = await channel.send({
+    content: `${interaction.user} told us a bit about themselves.`,
+    embeds: [embed],
+    allowedMentions: { users: [interaction.user.id], roles: [] }
+  });
+
+  await message.react('\u{1F44B}').catch(error => {
+    logger.warn('Failed to add welcome wave reaction', error);
+  });
+
+  await respondEphemeral(interaction, `Thanks. I posted your introduction in ${channel}.`);
   return true;
 }
 
 async function handleRoleButton(interaction) {
   if (interaction.customId === customIds.JOIN_INFO) {
-    const settings = interaction.guild
-      ? await botSettingsService.ensureGuildSettings(interaction.guild.id)
-      : null;
-
-    const rulesLine = settings && settings.rules_enabled && settings.rules_channel_id
-      ? `\n\nBefore anything else, please read and accept the rules in <#${settings.rules_channel_id}> to unlock the rest of the server.`
-      : '';
-
     return respondEphemeral(interaction, {
       content:
-        `Welcome. Check the rules, get settled in, and if you are ready to play head to <#${config.channels.gameChannelId}> and use <@&${config.channels.readyRoleId}>.${rulesLine}`
+        `Welcome. Discord Onboarding handles the basics now. Visit the site for server info, introduce yourself if you want, and when you are ready to play head to <#${config.channels.gameChannelId}> and use <@&${config.channels.readyRoleId}>.`
     });
   }
 
@@ -176,6 +240,16 @@ async function handleRoleButton(interaction) {
     return respondEphemeral(interaction, {
       content: `**${title}:**\n${buildRolePanelContent(data)}`,
       components
+    });
+  }
+
+  if (interaction.customId === customIds.INTRODUCE_SELF) {
+    return showIntroduceSelfModal(interaction);
+  }
+
+  if (interaction.customId === customIds.SITE_INFO) {
+    return respondEphemeral(interaction, {
+      content: `Visit the server site for community links, server info, and the quickest overview of what Tanks Let Loose is about:\n${config.channels.siteUrl}`
     });
   }
 
@@ -241,8 +315,16 @@ async function handleRoleSelect(interaction) {
 }
 
 async function handleRoleInteraction(interaction) {
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId !== customIds.INTRODUCE_SELF_MODAL) return false;
+    return handleIntroduceSelfSubmit(interaction);
+  }
+
   if (interaction.isButton()) {
     if (!isRoleButton(interaction.customId)) return false;
+    if (interaction.customId === customIds.INTRODUCE_SELF) {
+      return handleRoleButton(interaction);
+    }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const handled = await handleRoleButton(interaction);
     return Boolean(handled);

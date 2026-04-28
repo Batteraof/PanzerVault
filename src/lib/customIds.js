@@ -1,5 +1,9 @@
 module.exports = {
   JOIN_INFO: 'join_info',
+  INTRODUCE_SELF: 'introduce_self',
+  INTRODUCE_SELF_MODAL: 'introduce_self_modal',
+  INTRODUCE_SELF_INPUT: 'introduce_self_input',
+  SITE_INFO: 'site_info',
   ROLES_MENU: 'roles_menu',
   ROLE_SELECT: 'role_select',
   AGREE_RULES: 'agree_rules',

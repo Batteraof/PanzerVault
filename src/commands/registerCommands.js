@@ -4,6 +4,7 @@ const { REST, Routes } = require('discord.js');
 const config = require('../config');
 const logger = require('../logger');
 const botCommand = require('./bot');
+const roleCommand = require('./role');
 const rankCommand = require('./rank');
 const rankResetCommand = require('./rankReset');
 const galleryCommand = require('./gallery');
@@ -27,6 +28,7 @@ async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
   const commands = [
     botCommand.data.toJSON(),
+    roleCommand.data.toJSON(),
     rankCommand.data.toJSON(),
     rankResetCommand.data.toJSON(),
     submitCommand.data.toJSON(),

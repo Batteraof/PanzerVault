@@ -82,7 +82,7 @@ function buildRulesPanel(guild) {
       },
       {
         name: 'After You Agree',
-        value: 'You will unlock the full server, choose your skill and region roles, and Medium or Expert players can opt into a coach role so beginners know who to ask for help.',
+        value: 'You will unlock the full server. Discord Onboarding handles the basic role choices, and Medium or Expert players can opt into the helper role so beginners know who to ask for help.',
         inline: false
       },
       {

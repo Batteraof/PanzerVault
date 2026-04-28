@@ -264,7 +264,7 @@ async function handleOnboarding(interaction) {
     });
     await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
     await setupRolePanel(interaction.client);
-    return `Coach opt-in now uses ${role}.`;
+    return `Helper opt-in now uses ${role}.`;
   }
 
   return 'Unknown onboarding config action.';

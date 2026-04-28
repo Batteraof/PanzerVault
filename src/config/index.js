@@ -102,6 +102,7 @@ const config = {
     welcome: process.env.WELCOME_CHANNEL_ID || process.env.ROLE_PANEL_CHANNEL_ID || '1495760275448528928',
     rules: process.env.RULES_CHANNEL_ID || '',
     siteUrl: process.env.SITE_URL || 'https://tanksletloose.carrd.co/',
+    generalChannelId: process.env.GENERAL_CHANNEL_ID || '',
     generalUrl:
       process.env.GENERAL_CHANNEL_URL ||
       'https://discord.com/channels/1495760274827903086/1495924550662098944',
