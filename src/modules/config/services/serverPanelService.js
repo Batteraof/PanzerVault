@@ -272,21 +272,31 @@ function footerTextForMessage(message) {
   return message.embeds?.[0]?.footer?.text || '';
 }
 
+function messageList(messages) {
+  if (!messages) return [];
+  if (typeof messages.values === 'function') return [...messages.values()];
+  if (Array.isArray(messages)) return messages;
+  if (Array.isArray(messages.items)) return messages.items;
+  return [];
+}
+
+function findPanelMessage(messages, marker, clientUserId) {
+  return messageList(messages).find(message =>
+    message.author?.id === clientUserId && footerTextForMessage(message) === marker
+  ) || null;
+}
+
 async function findExistingPanelMessage(channel, marker, clientUserId) {
   const pinned = await channel.messages.fetchPins().catch(() => null);
   if (pinned) {
-    const pinnedMatch = pinned.find(message =>
-      message.author.id === clientUserId && footerTextForMessage(message) === marker
-    );
+    const pinnedMatch = findPanelMessage(pinned, marker, clientUserId);
     if (pinnedMatch) return pinnedMatch;
   }
 
   const recent = await channel.messages.fetch({ limit: 25 }).catch(() => null);
   if (!recent) return null;
 
-  return recent.find(message =>
-    message.author.id === clientUserId && footerTextForMessage(message) === marker
-  ) || null;
+  return findPanelMessage(recent, marker, clientUserId);
 }
 
 async function pinIfPossible(message) {
