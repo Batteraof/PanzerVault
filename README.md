@@ -2,7 +2,7 @@
 
 CommonJS Discord.js v14 bot for Tanks Let Loose with:
 
-- welcome flow
+- welcome flow with optional introductions
 - rules verification
 - Discord Onboarding handoff with optional bot fallback roles
 - PostgreSQL-backed leveling
@@ -108,6 +108,7 @@ The bot uses:
 ## Public Commands
 
 - `/bot`
+- `/role`
 - `/rank`
 - `/leaderboard`
 - `/profile`
@@ -133,8 +134,9 @@ Recommended setup:
 
 - Discord Onboarding assigns platform, skill, region, interest, and channel roles
 - the bot keeps XP reward roles, tickets, media/gallery/video flows, events, spotlight, and dashboard/admin automation
-- optional coach role stays in the bot so Medium and Expert members can opt into being helper contacts
+- optional helper role stays in the bot so Medium and Expert members can opt into being helper contacts
 - set `ONBOARDING_ENABLED=false` when Discord Onboarding handles the basic roles
+- members can use `/role` later if their Beginner / Medium / Expert role needs to be changed
 
 When bot rules verification is enabled:
 
@@ -143,8 +145,10 @@ When bot rules verification is enabled:
 - if `ONBOARDING_ENABLED=true`, they can immediately choose fallback bot roles:
   - skill: `Beginner / Medium / Expert`
   - region: `EU / UK / NA / LATAM / AFRICA / SA / EA / SEA / OCE`
-- Medium and Expert members can opt into a coach role when it is configured
+- Medium and Expert members can opt into a helper role when it is configured
 - beginners are told who can help
+
+The welcome message no longer asks members to accept rules or pick roles when Discord Onboarding handles that first-run experience. Instead, it keeps a site button and offers an optional **Tell us about yourself** popup. Introductions are posted in the general channel and get a wave reaction so members can welcome the newcomer.
 
 Important: Discord channel permissions still need to be set so only the verified role can see the full server.
 
@@ -307,7 +311,7 @@ Examples:
 - `/config rules verified-role`
 - `/config onboarding skill-role`
 - `/config onboarding region-role`
-- `/config onboarding coach-role`
+- `/config onboarding coach-role` for the helper role
 - `/config community video-channel`
 - `/config community spotlight-channel`
 - `/config community spotlight-role`

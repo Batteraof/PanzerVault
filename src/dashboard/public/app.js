@@ -926,11 +926,11 @@ function renderOnboardingSettings() {
       </section>
 
       <section class="settings-section">
-        <h3>Coach routing</h3>
+        <h3>Helper routing</h3>
         <div class="form-grid">
           <label class="field field-span-2">
-            <span>Coach role</span>
-            <select name="coachRoleId">${selectOptions(metadata.roles, community.coach_role_id, 'Choose the coach / teacher role')}</select>
+            <span>Helper role</span>
+            <select name="coachRoleId">${selectOptions(metadata.roles, community.coach_role_id, 'Choose the helper role')}</select>
             <small>Medium and Expert members can opt into this so Beginners know who they can ask for help.</small>
           </label>
         </div>

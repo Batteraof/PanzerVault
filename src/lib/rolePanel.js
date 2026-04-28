@@ -66,8 +66,8 @@ async function buildRolePanelComponents(guildId) {
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(customIds.COACH_TOGGLE)
-          .setLabel('Toggle Coach Role')
-          .setStyle(ButtonStyle.Secondary)
+          .setLabel('Toggle Helper Role')
+          .setStyle(ButtonStyle.Primary)
       )
     );
   }
@@ -90,7 +90,7 @@ function buildRolePanelContent(data) {
   }
 
   if (data.communitySettings.coach_role_id) {
-    lines.push('- Medium and Expert players can opt into the coach role so beginners know who to ask for help.');
+    lines.push('- Medium and Expert players can opt into the helper role so beginners know who to ask for help.');
     lines.push(`- Beginners can watch for members with <@&${data.communitySettings.coach_role_id}>.`);
   }
 

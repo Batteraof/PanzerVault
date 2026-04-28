@@ -228,7 +228,7 @@ module.exports = {
     .addSubcommandGroup(group =>
       group
         .setName('onboarding')
-        .setDescription('Configure onboarding roles and the coach flow.')
+        .setDescription('Configure fallback onboarding roles and the helper flow.')
         .addSubcommand(subcommand =>
           addEnabledOption(
             subcommand
@@ -268,8 +268,8 @@ module.exports = {
           addRoleOption(
             subcommand
               .setName('coach-role')
-              .setDescription('Set the coach role for medium and expert players.'),
-            'Coach role.'
+              .setDescription('Set the helper role for medium and expert players.'),
+            'Helper role.'
           )
         )
     )
