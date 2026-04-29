@@ -20,7 +20,7 @@ const rewardRoleService = require('../modules/rewards/services/rewardRoleService
 const readinessService = require('../modules/system/services/readinessService');
 const eventService = require('../modules/community/services/eventService');
 const { buildWelcomePayload } = require('../lib/welcomeMessage');
-const { parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
+const { parseDateTimeInTimeZone, parseLocalDateTimeString } = require('../modules/community/utils/dateUtils');
 
 const app = express();
 const port = Number(process.env.DASHBOARD_PORT || 3000);
@@ -352,6 +352,15 @@ function parseEventDateInput(value) {
   return parseLocalDateTimeString(normalized);
 }
 
+function serverTimeZone() {
+  return process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
+function parseEventDateInputForZone(value, timeZone) {
+  const normalized = String(value || '').trim().replace('T', ' ');
+  return timeZone ? parseDateTimeInTimeZone(normalized, timeZone) : parseEventDateInput(normalized);
+}
+
 function toOptionalBoolean(value) {
   return typeof value === 'boolean' ? value : undefined;
 }
@@ -447,6 +456,7 @@ function buildCommunityUpdates(body = {}) {
     spotlightChannelId: 'spotlight_channel_id',
     spotlightRoleId: 'spotlight_role_id',
     eventChannelId: 'event_channel_id',
+    eventRoleId: 'event_role_id',
     moderationLogChannelId: 'moderation_log_channel_id'
   };
 
@@ -658,9 +668,10 @@ app.post('/api/events', async (req, res, next) => {
       throw badRequest('Event title must be at least 3 characters long.');
     }
 
-    const startsAt = parseEventDateInput(req.body.startsAt);
+    const timeZone = String(req.body.timeZone || serverTimeZone()).trim();
+    const startsAt = parseEventDateInputForZone(req.body.startsAt, timeZone);
     if (!startsAt) {
-      throw badRequest('Use a valid local date and time for the event start.');
+      throw badRequest(`Use a valid date and time for the event start in ${timeZone || 'server local time'}.`);
     }
 
     if (startsAt.getTime() <= Date.now()) {
@@ -668,6 +679,7 @@ app.post('/api/events', async (req, res, next) => {
     }
 
     const externalUrl = eventService.validateLink(req.body.externalUrl || null);
+    const imageUrl = eventService.validateImageUrl(req.body.imageUrl || null);
     const description = String(req.body.description || '').trim() || null;
 
     const created = await eventRepository.createEvent({
@@ -676,6 +688,8 @@ app.post('/api/events', async (req, res, next) => {
       title,
       description,
       externalUrl,
+      imageUrl,
+      timeZone,
       startsAt,
       createdBy: 'dashboard'
     });
@@ -688,9 +702,10 @@ app.post('/api/events', async (req, res, next) => {
       };
 
       const payload = {
+        content: eventService.buildEventAnnouncementContent(settings),
         embeds: [eventService.buildEventEmbed(created, counts).toJSON()],
         components: eventService.buildEventComponents(created).map(row => row.toJSON()),
-        allowed_mentions: { parse: [] }
+        allowed_mentions: eventService.eventAllowedMentions(settings)
       };
 
       const message = await discordRequest(`/channels/${created.channel_id}/messages`, {
@@ -892,6 +907,7 @@ app.get('/api/settings', async (req, res, next) => {
       publicRoles: serializeSelectableRoles(publicRoles),
       onboarding,
       metadata,
+      serverTimeZone: serverTimeZone(),
       readiness
     });
   } catch (error) {

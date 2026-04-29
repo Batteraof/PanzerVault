@@ -432,6 +432,14 @@ module.exports = {
           )
         )
         .addSubcommand(subcommand =>
+          addRoleOption(
+            subcommand
+              .setName('event-role')
+              .setDescription('Set the role mentioned for event posts and reminders.'),
+            'Event ping role.'
+          )
+        )
+        .addSubcommand(subcommand =>
           addEnabledOption(
             subcommand
               .setName('event-enabled')

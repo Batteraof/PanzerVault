@@ -13,6 +13,7 @@ function defaultsFromEnv() {
     spotlightRoleId: config.community.spotlightRoleId || null,
     eventEnabled: config.community.eventEnabled,
     eventChannelId: config.community.eventChannelId || null,
+    eventRoleId: config.community.eventRoleId || null,
     anniversaryEnabled: config.community.anniversaryEnabled,
     weeklyRecapEnabled: config.community.weeklyRecapEnabled,
     softModerationEnabled: config.community.softModerationEnabled,

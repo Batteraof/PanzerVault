@@ -117,6 +117,12 @@ module.exports = {
               .setDescription('New external link. Use a single space to clear it.')
               .setRequired(false)
           )
+          .addStringOption(option =>
+            option
+              .setName('image_url')
+              .setDescription('New event image URL. Use a single space to clear it.')
+              .setRequired(false)
+          )
       )
     )
     .addSubcommand(subcommand =>

@@ -13,12 +13,13 @@ async function createEvent(data, client) {
       title,
       description,
       external_url,
+      image_url,
       time_zone,
       starts_at,
       created_by,
       message_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *
     `,
     [
@@ -27,6 +28,7 @@ async function createEvent(data, client) {
       data.title,
       data.description || null,
       data.externalUrl || null,
+      data.imageUrl || null,
       data.timeZone || null,
       data.startsAt,
       data.createdBy,
@@ -44,6 +46,7 @@ async function updateEvent(guildId, eventId, updates, client) {
     'title',
     'description',
     'external_url',
+    'image_url',
     'starts_at',
     'time_zone',
     'reminder_3d_sent_at',
@@ -246,6 +249,24 @@ async function getUserRsvp(eventId, userId, client) {
   return result.rows[0] || null;
 }
 
+async function countActiveInterestedRsvps(guildId, userId, client) {
+  const result = await executor(client).query(
+    `
+    SELECT COUNT(*)::integer AS count
+    FROM event_rsvps r
+    JOIN guild_events e ON e.id = r.event_id
+    WHERE e.guild_id = $1
+      AND e.status = 'scheduled'
+      AND e.starts_at >= now()
+      AND r.user_id = $2
+      AND r.status IN ('going', 'maybe')
+    `,
+    [guildId, userId]
+  );
+
+  return result.rows[0] ? result.rows[0].count : 0;
+}
+
 async function upsertAttendance(data, client) {
   const result = await executor(client).query(
     `
@@ -368,6 +389,7 @@ module.exports = {
   getRsvpCounts,
   listRsvpsByStatuses,
   getUserRsvp,
+  countActiveInterestedRsvps,
   upsertAttendance,
   upsertEventStreak,
   listAttendance,

@@ -25,6 +25,16 @@ const REGION_OPTIONS = [
   ['oce', 'OCE']
 ];
 
+const TIME_ZONE_OPTIONS = [
+  'Europe/Amsterdam',
+  'Europe/London',
+  'UTC',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Tokyo',
+  'Australia/Sydney'
+];
+
 const state = {
   overview: null,
   events: [],
@@ -319,6 +329,16 @@ function selectOptions(items, selectedId, placeholder = 'Not set') {
   ].join('');
 }
 
+function timeZoneOptions(selectedTimeZone) {
+  const selected = selectedTimeZone || 'UTC';
+  const options = [...new Set([selected, ...TIME_ZONE_OPTIONS])];
+  return options.map(timeZone => `
+    <option value="${escapeHtml(timeZone)}"${timeZone === selected ? ' selected' : ''}>
+      ${escapeHtml(timeZone)}
+    </option>
+  `).join('');
+}
+
 function renderToggleControl(name, title, detail, checked) {
   return `
     <label class="toggle-card">
@@ -365,6 +385,7 @@ function renderEventComposer() {
   const eventsEnabled = community.event_enabled !== false;
   const hasEventChannel = Boolean(community.event_channel_id);
   const channelLabel = labelFor(channels, community.event_channel_id, 'No event channel configured');
+  const defaultTimeZone = state.settings?.serverTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
   let calloutTone = 'info';
   let calloutTitle = `Posts will go to ${channelLabel}.`;
@@ -396,13 +417,26 @@ function renderEventComposer() {
         <label class="field">
           <span>Start time</span>
           <input type="datetime-local" name="startsAt" required>
-          <small>Use your local time; the bot stores it in the database correctly.</small>
+          <small>Discord shows the posted timestamp in each member's own timezone.</small>
+        </label>
+
+        <label class="field">
+          <span>Timezone</span>
+          <input type="text" name="timeZone" list="event-time-zone-options" value="${escapeHtml(defaultTimeZone)}" placeholder="Europe/Amsterdam">
+          <datalist id="event-time-zone-options">${timeZoneOptions(defaultTimeZone)}</datalist>
+          <small>Defaults to the dashboard server timezone.</small>
         </label>
 
         <label class="field">
           <span>Optional link</span>
           <input type="url" name="externalUrl" placeholder="https://...">
           <small>Briefings, sign-up sheets, or external event notes.</small>
+        </label>
+
+        <label class="field">
+          <span>Style picture</span>
+          <input type="url" name="imageUrl" maxlength="500" placeholder="https://...">
+          <small>Shown as the event embed image in Discord.</small>
         </label>
       </div>
 
@@ -687,6 +721,11 @@ function renderCommunitySettings() {
             <span>Spotlight role</span>
             <select name="spotlightRoleId">${selectOptions(metadata.roles, community.spotlight_role_id, 'Choose the spotlight role')}</select>
             <small>Applied to the current Community Spotlight winner.</small>
+          </label>
+          <label class="field field-span-2">
+            <span>Event ping role</span>
+            <select name="eventRoleId">${selectOptions(metadata.roles, community.event_role_id, 'Choose the event ping role')}</select>
+            <small>Mentioned on new events and reminders. Going or Maybe RSVPs also receive this role.</small>
           </label>
         </div>
       </section>
@@ -1156,8 +1195,10 @@ async function handleEventCreateSubmit(event) {
     const payload = {
       title: form.elements.title.value.trim(),
       startsAt: form.elements.startsAt.value,
+      timeZone: form.elements.timeZone.value,
       description: form.elements.description.value.trim(),
-      externalUrl: form.elements.externalUrl.value.trim()
+      externalUrl: form.elements.externalUrl.value.trim(),
+      imageUrl: form.elements.imageUrl.value.trim()
     };
 
     await apiRequest('/api/events', {
@@ -1332,6 +1373,7 @@ async function handleCommunitySettingsSubmit(event) {
       spotlightChannelId: form.elements.spotlightChannelId.value,
       moderationLogChannelId: form.elements.moderationLogChannelId.value,
       spotlightRoleId: form.elements.spotlightRoleId.value,
+      eventRoleId: form.elements.eventRoleId.value,
       weeklyRecapNote: form.elements.weeklyRecapNote.value
     };
 

@@ -333,6 +333,14 @@ async function handleCommunity(interaction) {
     return `Event posts will now use ${channel}.`;
   }
 
+  if (subcommand === 'event-role') {
+    const role = interaction.options.getRole('role', true);
+    await communitySettingsService.updateSettings(interaction.guild.id, {
+      event_role_id: role.id
+    });
+    return `Event posts and reminders will now mention ${role}. Going and Maybe RSVPs will receive that role.`;
+  }
+
   if (subcommand === 'event-enabled') {
     const enabled = interaction.options.getBoolean('enabled', true);
     await communitySettingsService.updateSettings(interaction.guild.id, {

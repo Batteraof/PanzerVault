@@ -85,6 +85,10 @@ function buildEventEmbed(event, counts) {
     });
   }
 
+  if (event.image_url) {
+    embed.setImage(event.image_url);
+  }
+
   if (event.status === 'cancelled' && event.cancellation_reason) {
     embed.addFields({
       name: 'Cancelled',
@@ -154,6 +158,31 @@ function validateLink(input) {
   return url.toString();
 }
 
+function validateImageUrl(input) {
+  const value = validateLink(input);
+  if (!value) return null;
+
+  if (value.length > 500) {
+    throw new Error('Event image URLs must be 500 characters or less.');
+  }
+
+  return value;
+}
+
+function eventRoleId(settings) {
+  return settings?.event_role_id ? String(settings.event_role_id) : null;
+}
+
+function eventAllowedMentions(settings) {
+  const roleId = eventRoleId(settings);
+  return roleId ? { roles: [roleId], parse: [] } : { parse: [] };
+}
+
+function buildEventAnnouncementContent(settings) {
+  const roleId = eventRoleId(settings);
+  return roleId ? `<@&${roleId}>` : undefined;
+}
+
 function eventMessageUrl(event) {
   return event.message_id
     ? `https://discord.com/channels/${event.guild_id}/${event.channel_id}/${event.message_id}`
@@ -182,12 +211,13 @@ function trimLines(lines, maxLength = 1900) {
   return output.join('\n');
 }
 
-async function renderEventMessage(channel, event) {
+async function renderEventMessage(channel, event, settings = null) {
   const counts = await eventRepository.getRsvpCounts(event.id);
   return channel.send({
+    content: buildEventAnnouncementContent(settings),
     embeds: [buildEventEmbed(event, counts)],
     components: buildEventComponents(event),
-    allowedMentions: { parse: [] }
+    allowedMentions: eventAllowedMentions(settings)
   });
 }
 
@@ -252,12 +282,13 @@ async function createEventPrepared(interaction, data) {
     title: data.title,
     description: data.description || null,
     externalUrl: validateLink(data.externalUrl),
+    imageUrl: validateImageUrl(data.imageUrl),
     timeZone: data.timeZone || null,
     startsAt,
     createdBy: data.createdBy || interaction.user.id
   });
 
-  const message = await renderEventMessage(channel, event);
+  const message = await renderEventMessage(channel, event, settings);
   const updates = {
     message_id: message.id
   };
@@ -393,6 +424,7 @@ async function editEvent(interaction) {
   const title = interaction.options.getString('title');
   const description = interaction.options.getString('description');
   const link = interaction.options.getString('link');
+  const imageUrl = interaction.options.getString('image_url');
   const startsAtInput = interaction.options.getString('starts_at');
   const timeZone = interaction.options.getString('timezone');
 
@@ -402,6 +434,7 @@ async function editEvent(interaction) {
   }
   if (description !== null) updates.description = description.trim() || null;
   if (link !== null) updates.external_url = link.trim() ? validateLink(link.trim()) : null;
+  if (imageUrl !== null) updates.image_url = imageUrl.trim() ? validateImageUrl(imageUrl.trim()) : null;
   if (timeZone !== null) updates.time_zone = timeZone || null;
 
   if (startsAtInput) {
@@ -453,6 +486,9 @@ async function handleRsvp(interaction) {
 
   const previousRsvp = await eventRepository.getUserRsvp(event.id, interaction.user.id);
   await eventRepository.upsertRsvp(event.id, interaction.user.id, parsed.state);
+  await updateEventRsvpRole(interaction, event, parsed.state).catch(error => {
+    logger.warn('Failed to update event RSVP role', error);
+  });
 
   const xpResult = await eventXpService.awardRsvpXp(
     interaction.client,
@@ -503,6 +539,8 @@ async function handleAttendance(interaction) {
 async function sendReminder(client, event, label) {
   const channel = await client.channels.fetch(event.channel_id).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
+  const settings = await communitySettingsService.ensureGuildSettings(event.guild_id).catch(() => null);
+  const roleId = eventRoleId(settings);
 
   const timestamp = Math.floor(new Date(event.starts_at).getTime() / 1000);
   const messageUrl = event.message_id
@@ -523,19 +561,42 @@ async function sendReminder(client, event, label) {
     lines.push(`[Open link](${event.external_url})`);
   }
 
-  const rsvps = label === '1 day'
+  const rsvps = !roleId && label === '1 day'
     ? await eventRepository.listRsvpsByStatuses(event.id, [RSVP_STATES.GOING]).catch(() => [])
     : [];
   const userIds = [...new Set(rsvps.map(row => String(row.user_id)).filter(Boolean))].slice(0, 40);
 
-  if (userIds.length > 0) {
+  if (roleId) {
+    lines.unshift(`Heads up <@&${roleId}>`);
+  } else if (userIds.length > 0) {
     lines.unshift(`Heads up ${userIds.map(userId => `<@${userId}>`).join(' ')}`);
   }
 
   await channel.send({
     content: lines.join('\n'),
-    allowedMentions: { users: userIds }
+    allowedMentions: roleId ? { roles: [roleId], parse: [] } : { users: userIds }
   }).catch(() => null);
+}
+
+async function updateEventRsvpRole(interaction, event, nextState) {
+  const settings = await communitySettingsService.ensureGuildSettings(event.guild_id);
+  const roleId = eventRoleId(settings);
+  if (!roleId || !interaction.guild) return;
+
+  const member = interaction.member?.roles
+    ? interaction.member
+    : await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member || !member.roles) return;
+
+  if ([RSVP_STATES.GOING, RSVP_STATES.MAYBE].includes(nextState)) {
+    await member.roles.add(roleId, `RSVP ${nextState} for event #${event.id}`);
+    return;
+  }
+
+  const activeInterestedCount = await eventRepository.countActiveInterestedRsvps(event.guild_id, interaction.user.id);
+  if (activeInterestedCount === 0) {
+    await member.roles.remove(roleId, `No active Going or Maybe event RSVPs remain after event #${event.id}`);
+  }
 }
 
 async function processDueReminders(client, now = new Date()) {
@@ -579,6 +640,9 @@ module.exports = {
   parseAttendCustomId,
   buildEventEmbed,
   buildEventComponents,
-  validateLink
+  validateLink,
+  validateImageUrl,
+  buildEventAnnouncementContent,
+  eventAllowedMentions
 };
 

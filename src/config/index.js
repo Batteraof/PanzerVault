@@ -127,6 +127,7 @@ const config = {
     spotlightRoleId: process.env.SPOTLIGHT_ROLE_ID || '',
     eventEnabled: boolFromEnv(process.env.EVENT_ENABLED, true),
     eventChannelId: process.env.EVENT_CHANNEL_ID || '',
+    eventRoleId: process.env.EVENT_ROLE_ID || '',
     anniversaryEnabled: boolFromEnv(process.env.ANNIVERSARY_ENABLED, true),
     weeklyRecapEnabled: boolFromEnv(process.env.WEEKLY_RECAP_ENABLED, true),
     softModerationEnabled: boolFromEnv(process.env.SOFT_MODERATION_ENABLED, true),
