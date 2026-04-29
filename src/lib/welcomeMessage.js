@@ -22,17 +22,13 @@ function buildWelcomePayload(member, options = {}) {
     .addFields(
       { name: 'Members', value: `${memberCount}`, inline: true },
       { name: 'Site', value: 'Server overview, links, events, and community info live there.', inline: false },
-      { name: 'General', value: 'Introduce yourself if you want. Members can wave back to welcome you.', inline: false }
+      { name: 'General', value: 'Say hello when you are ready. New introductions are posted in general so members can wave back.', inline: false }
     )
     .setFooter({ text: 'Enjoy your stay.' })
     .setTimestamp();
 
   const row = new ActionRowBuilder()
     .addComponents(
-      new ButtonBuilder()
-        .setLabel('Tell us about yourself')
-        .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.INTRODUCE_SELF),
       new ButtonBuilder()
         .setLabel('Visit the site')
         .setStyle(ButtonStyle.Primary)

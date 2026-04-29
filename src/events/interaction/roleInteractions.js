@@ -27,6 +27,8 @@ function isCoachEligible(skillOptionKey) {
 }
 
 function isRoleButton(customId) {
+  if (customId.startsWith(`${customIds.INTRODUCE_SELF}:`)) return true;
+
   return [
     customIds.JOIN_INFO,
     customIds.INTRODUCE_SELF,
@@ -176,6 +178,13 @@ async function handleCoachToggle(interaction) {
   return true;
 }
 
+function guildIdFromInteraction(interaction) {
+  if (interaction.inGuild()) return interaction.guild.id;
+
+  const [, guildId] = String(interaction.customId || '').split(':');
+  return guildId || null;
+}
+
 async function setPublicRoles(interaction, selectedValues) {
   const publicRoles = await publicRoleService.listPublicRoles(interaction.guild.id);
   const selectedKeys = new Set(selectedValues || []);
@@ -232,14 +241,20 @@ async function setPublicRoles(interaction, selectedValues) {
 }
 
 async function showIntroduceSelfModal(interaction) {
-  const existing = await memberIntroductionRepository.getIntroduction(interaction.guild.id, interaction.user.id);
+  const guildId = guildIdFromInteraction(interaction);
+  if (!guildId) {
+    await respondEphemeral(interaction, 'I could not find the server for this introduction prompt. Please tell staff.');
+    return true;
+  }
+
+  const existing = await memberIntroductionRepository.getIntroduction(guildId, interaction.user.id);
   if (existing) {
     await respondEphemeral(interaction, 'You have already posted your introduction. Staff can help if you need it changed.');
     return true;
   }
 
   const modal = new ModalBuilder()
-    .setCustomId(customIds.INTRODUCE_SELF_MODAL)
+    .setCustomId(`${customIds.INTRODUCE_SELF_MODAL}:${guildId}`)
     .setTitle('Tell us about yourself');
 
   const input = new TextInputBuilder()
@@ -257,7 +272,19 @@ async function showIntroduceSelfModal(interaction) {
 }
 
 async function handleIntroduceSelfSubmit(interaction) {
-  const reserved = await memberIntroductionRepository.reserveIntroduction(interaction.guild.id, interaction.user.id);
+  const guildId = guildIdFromInteraction(interaction);
+  if (!guildId) {
+    await respondEphemeral(interaction, 'I could not find the server for this introduction. Please tell staff.');
+    return true;
+  }
+
+  const guild = interaction.guild || interaction.client.guilds.cache.get(guildId) || await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await respondEphemeral(interaction, 'I could not reach the server for this introduction. Please tell staff.');
+    return true;
+  }
+
+  const reserved = await memberIntroductionRepository.reserveIntroduction(guildId, interaction.user.id);
   if (!reserved) {
     await respondEphemeral(interaction, 'You have already posted your introduction. Staff can help if you need it changed.');
     return true;
@@ -265,11 +292,11 @@ async function handleIntroduceSelfSubmit(interaction) {
 
   const generalChannelId = getGeneralChannelId();
   const channel = generalChannelId
-    ? interaction.guild.channels.cache.get(generalChannelId) || await interaction.guild.channels.fetch(generalChannelId).catch(() => null)
+    ? guild.channels.cache.get(generalChannelId) || await guild.channels.fetch(generalChannelId).catch(() => null)
     : null;
 
   if (!channel || !channel.isTextBased()) {
-    await memberIntroductionRepository.releaseIntroduction(interaction.guild.id, interaction.user.id);
+    await memberIntroductionRepository.releaseIntroduction(guildId, interaction.user.id);
     await respondEphemeral(interaction, 'I could not find the general channel for introductions. Please tell staff.');
     return true;
   }
@@ -291,12 +318,12 @@ async function handleIntroduceSelfSubmit(interaction) {
       allowedMentions: { users: [interaction.user.id], roles: [] }
     });
   } catch (error) {
-    await memberIntroductionRepository.releaseIntroduction(interaction.guild.id, interaction.user.id);
+    await memberIntroductionRepository.releaseIntroduction(guildId, interaction.user.id);
     throw error;
   }
 
   await memberIntroductionRepository.markIntroductionPosted(
-    interaction.guild.id,
+    guildId,
     interaction.user.id,
     channel.id,
     message.id
@@ -306,13 +333,14 @@ async function handleIntroduceSelfSubmit(interaction) {
     logger.warn('Failed to add welcome wave reaction', error);
   });
 
-  const picker = await buildTeamRolePicker(interaction.guild.id);
+  const picker = interaction.inGuild() ? await buildTeamRolePicker(guildId) : { content: '', components: [] };
   const teamLine = picker.components.length > 0
     ? '\n\nYou can also choose a team now if you want.'
     : '';
+  const pickerLine = picker.content ? `\n\n${picker.content}` : '';
 
   await respondEphemeral(interaction, {
-    content: `Thanks. I posted your introduction in ${channel}.${teamLine}\n\n${picker.content}`,
+    content: `Thanks. I posted your introduction in ${channel}.${teamLine}${pickerLine}`,
     components: picker.components
   });
   return true;
@@ -338,7 +366,10 @@ async function handleRoleButton(interaction) {
     });
   }
 
-  if (interaction.customId === customIds.INTRODUCE_SELF) {
+  if (
+    interaction.customId === customIds.INTRODUCE_SELF ||
+    interaction.customId.startsWith(`${customIds.INTRODUCE_SELF}:`)
+  ) {
     return showIntroduceSelfModal(interaction);
   }
 
@@ -393,13 +424,19 @@ async function handleRoleSelect(interaction) {
 
 async function handleRoleInteraction(interaction) {
   if (interaction.isModalSubmit()) {
-    if (interaction.customId !== customIds.INTRODUCE_SELF_MODAL) return false;
+    if (
+      interaction.customId !== customIds.INTRODUCE_SELF_MODAL &&
+      !interaction.customId.startsWith(`${customIds.INTRODUCE_SELF_MODAL}:`)
+    ) return false;
     return handleIntroduceSelfSubmit(interaction);
   }
 
   if (interaction.isButton()) {
     if (!isRoleButton(interaction.customId)) return false;
-    if (interaction.customId === customIds.INTRODUCE_SELF) {
+    if (
+      interaction.customId === customIds.INTRODUCE_SELF ||
+      interaction.customId.startsWith(`${customIds.INTRODUCE_SELF}:`)
+    ) {
       return handleRoleButton(interaction);
     }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });

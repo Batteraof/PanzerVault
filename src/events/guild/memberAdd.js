@@ -59,6 +59,26 @@ async function maybeSendHelperPrompt(member, channel = null) {
   });
 }
 
+async function maybeSendPrivateIntroductionPrompt(member) {
+  await member.send({
+    content: [
+      `Welcome to ${member.guild.name}.`,
+      'If you want, you can introduce yourself to the community with the button below.',
+      'Only you can see this prompt. Your introduction will be posted in the general channel after you submit it.'
+    ].join('\n'),
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${customIds.INTRODUCE_SELF}:${member.guild.id}`)
+          .setLabel('Tell us about yourself')
+          .setStyle(ButtonStyle.Primary)
+      )
+    ]
+  }).catch(error => {
+    logger.warn('Failed to send private introduction prompt', error);
+  });
+}
+
 async function handleGuildMemberUpdate(oldMember, newMember) {
   const communitySettings = await communitySettingsService.ensureGuildSettings(newMember.guild.id);
   const wasEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(oldMember);
@@ -90,6 +110,7 @@ async function handleGuildMemberAdd(member) {
 
   try {
     await channel.send(buildWelcomePayload(member));
+    await maybeSendPrivateIntroductionPrompt(member);
     await maybeSendHelperPrompt(member, channel);
   } catch (error) {
     logger.warn('Failed to send welcome message', error);
@@ -99,5 +120,6 @@ async function handleGuildMemberAdd(member) {
 module.exports = {
   handleGuildMemberUpdate,
   handleGuildMemberAdd,
+  maybeSendPrivateIntroductionPrompt,
   maybeSendHelperPrompt
 };
