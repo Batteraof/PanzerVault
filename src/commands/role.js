@@ -9,6 +9,7 @@ const customIds = require('../lib/customIds');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
 const memberSkillRoleService = require('../modules/config/services/memberSkillRoleService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
+const botSettingsService = require('../modules/config/services/botSettingsService');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -30,6 +31,15 @@ module.exports = {
   async execute(interaction) {
     if (!interaction.inGuild()) {
       await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const botSettings = await botSettingsService.ensureGuildSettings(interaction.guild.id);
+    if (botSettings.role_panel_channel_id && interaction.channelId !== botSettings.role_panel_channel_id) {
+      await interaction.reply({
+        content: `Use this in <#${botSettings.role_panel_channel_id}> so role changes stay in the roles channel. You can also use /skill there.`,
+        flags: MessageFlags.Ephemeral
+      });
       return;
     }
 

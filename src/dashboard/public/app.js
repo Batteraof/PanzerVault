@@ -15,13 +15,10 @@ const SKILL_OPTIONS = [
 
 const REGION_OPTIONS = [
   ['eu', 'EU'],
-  ['uk', 'UK'],
   ['na', 'NA'],
-  ['latam', 'LATAM'],
   ['africa', 'AFRICA'],
   ['sa', 'SA'],
   ['ea', 'EA'],
-  ['sea', 'SEA'],
   ['oce', 'OCE']
 ];
 
@@ -66,7 +63,9 @@ const uiState = {
   publicRoleMessage: '',
   publicRoleTone: 'info',
   onboardingMessage: '',
-  onboardingTone: 'info'
+  onboardingTone: 'info',
+  roleCategoryMessage: '',
+  roleCategoryTone: 'info'
 };
 
 const numberFormatter = new Intl.NumberFormat();
@@ -293,6 +292,10 @@ function getTeamRoles() {
 
 function getPublicRoles() {
   return state.settings?.publicRoles || [];
+}
+
+function getRoleCategories() {
+  return state.settings?.roleCategories || [];
 }
 
 function getGalleryTags() {
@@ -949,64 +952,114 @@ function renderRewardSettings() {
   });
 }
 
-function renderTeamSettings() {
-  const teamRoles = getTeamRoles();
+function renderRoleCategorySettings() {
+  const categories = getRoleCategories();
   const metadata = getMetadata();
 
-  html('#team-settings', `
-    <div class="panel-note">Configure the team roles shown by /team. Members can choose one active team role at a time.</div>
-    <form id="team-settings-form" class="form-stack">
+  html('#role-category-settings', `
+    <div class="panel-note">Configure role commands for the roles channel. After changing category command names, run command registration on the server.</div>
+    <form id="role-category-form" class="form-stack">
       <section class="settings-section">
-        <h3>Add or update team</h3>
+        <h3>Add or update category</h3>
         <div class="form-grid">
           <label class="field">
-            <span>Team label</span>
-            <input type="text" name="teamLabel" maxlength="60" placeholder="Armor, Infantry, Recon..." required>
-            <small>This is the label members see in /team.</small>
+            <span>Category label</span>
+            <input type="text" name="categoryLabel" maxlength="60" placeholder="Region, Platform, Vehicle..." required>
+            <small>This is the section name members see.</small>
           </label>
 
           <label class="field">
-            <span>Team role</span>
-            <select name="teamRoleId" required>${selectOptions(metadata.roles, '', 'Choose a team role')}</select>
-            <small>The Discord role assigned when members choose this team.</small>
+            <span>Command</span>
+            <input type="text" name="commandName" maxlength="32" placeholder="region" required>
+            <small>Creates a slash command like /region after command registration.</small>
+          </label>
+
+          <label class="field">
+            <span>Category key</span>
+            <input type="text" name="categoryKey" maxlength="40" placeholder="region">
+            <small>Use the same key to update an existing category.</small>
+          </label>
+
+          <label class="field">
+            <span>Selection mode</span>
+            <select name="selectionMode">
+              <option value="single">Only one role</option>
+              <option value="multiple">Multiple roles</option>
+            </select>
+            <small>Single mode removes other roles in the same category.</small>
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <select name="isEnabled">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+            <small>Disabled categories disappear from the pinned message and command registration.</small>
           </label>
 
           <label class="field">
             <span>Sort order</span>
-            <input type="number" name="teamSortOrder" step="1" value="0">
+            <input type="number" name="categorySortOrder" step="1" value="0">
             <small>Lower numbers appear first.</small>
+          </label>
+
+          <label class="field field-span-2">
+            <span>Description</span>
+            <input type="text" name="categoryDescription" maxlength="100" placeholder="Choose your usual play region.">
+            <small>Used in the pinned roles message and slash command description.</small>
           </label>
         </div>
       </section>
 
       <section class="settings-section">
-        <h3>Active teams</h3>
-        <div class="reward-list">
-          ${teamRoles.map(team => `
-            <div class="reward-row">
-              <div>
-                <strong>${escapeHtml(team.label)}</strong>
-                <span>${escapeHtml(labelFor(metadata.roles, team.roleId, `Role ${team.roleId}`))} - order ${escapeHtml(formatCount(team.sortOrder || 0))}</span>
-              </div>
-              <button class="button-secondary compact-button team-remove-button" type="button" data-option-key="${escapeHtml(team.optionKey)}">Remove</button>
-            </div>
-          `).join('') || renderEmpty('No team roles configured yet.', 'Add the first team role above and members can choose it with /team.')}
+        <h3>Add option to category</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Category</span>
+            <select name="optionCategoryKey" required>${selectOptions(categories.map(category => ({ id: category.categoryKey, label: `${category.label} /${category.commandName}` })), '', 'Choose a category')}</select>
+          </label>
+          <label class="field">
+            <span>Option label</span>
+            <input type="text" name="optionLabel" maxlength="60" placeholder="EU, NA, Armor..." required>
+          </label>
+          <label class="field">
+            <span>Discord role</span>
+            <select name="optionRoleId" required>${selectOptions(metadata.roles, '', 'Choose a role')}</select>
+          </label>
+          <label class="field">
+            <span>Sort order</span>
+            <input type="number" name="optionSortOrder" step="1" value="0">
+          </label>
         </div>
       </section>
 
-      ${renderStatusMessage(uiState.teamMessage, uiState.teamTone)}
+      <section class="settings-section">
+        <h3>Configured categories</h3>
+        <div class="reward-list">
+          ${categories.map(category => `
+            <div class="reward-row">
+              <div>
+                <strong>${escapeHtml(category.label)} <span class="meta">/${escapeHtml(category.commandName)}</span></strong>
+                <span>${escapeHtml(category.selectionMode)} - ${category.isEnabled ? 'enabled' : 'disabled'} - order ${escapeHtml(formatCount(category.sortOrder || 0))}</span>
+                <span>${(category.options || []).map(option => `${escapeHtml(option.label)} (${escapeHtml(labelFor(metadata.roles, option.roleId, `Role ${option.roleId}`))})`).join(', ') || 'No options yet'}</span>
+              </div>
+            </div>
+          `).join('') || renderEmpty('No role categories configured yet.', 'Add the first category above, then add role options to it.')}
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.roleCategoryMessage, uiState.roleCategoryTone)}
 
       <div class="action-row">
-        <button class="button-primary" type="submit">Save Team Role</button>
+        <button class="button-primary" type="submit" name="action" value="category">Save Category</button>
+        <button class="button-secondary" type="submit" name="action" value="option">Save Option</button>
       </div>
     </form>
   `);
 
-  const form = qs('#team-settings-form');
-  if (form) form.addEventListener('submit', handleTeamSettingsSubmit);
-  document.querySelectorAll('.team-remove-button').forEach(button => {
-    button.addEventListener('click', handleTeamRemoveClick);
-  });
+  const form = qs('#role-category-form');
+  if (form) form.addEventListener('submit', handleRoleCategorySubmit);
 }
 
 function renderPublicRoleSettings() {
@@ -1144,9 +1197,8 @@ function renderSettings() {
   renderGallerySettings();
   renderTicketSettings();
   renderRewardSettings();
-  renderTeamSettings();
+  renderRoleCategorySettings();
   renderPublicRoleSettings();
-  renderOnboardingSettings();
 }
 
 async function apiRequest(url, options = {}) {
@@ -1594,6 +1646,65 @@ async function handleRewardRemoveClick(event) {
     uiState.rewardMessage = error.message;
     uiState.rewardTone = 'error';
     renderSettings();
+  }
+}
+
+async function handleRoleCategorySubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitter = event.submitter;
+  const button = submitter || form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+  const action = submitter?.value || 'category';
+
+  uiState.roleCategoryMessage = action === 'option' ? 'Saving role option...' : 'Saving role category...';
+  uiState.roleCategoryTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    if (action === 'option') {
+      const categoryKey = form.elements.optionCategoryKey.value;
+      await apiRequest(`/api/settings/role-categories/${encodeURIComponent(categoryKey)}/options`, {
+        method: 'POST',
+        body: JSON.stringify({
+          label: form.elements.optionLabel.value.trim(),
+          roleId: form.elements.optionRoleId.value,
+          sortOrder: Number.parseInt(form.elements.optionSortOrder.value, 10) || 0
+        })
+      });
+      uiState.roleCategoryMessage = 'Role option saved.';
+    } else {
+      await apiRequest('/api/settings/role-categories', {
+        method: 'POST',
+        body: JSON.stringify({
+          label: form.elements.categoryLabel.value.trim(),
+          categoryKey: form.elements.categoryKey.value.trim(),
+          commandName: form.elements.commandName.value.trim(),
+          description: form.elements.categoryDescription.value.trim(),
+          selectionMode: form.elements.selectionMode.value,
+          sortOrder: Number.parseInt(form.elements.categorySortOrder.value, 10) || 0,
+          isEnabled: form.elements.isEnabled.value !== 'false'
+        })
+      });
+      uiState.roleCategoryMessage = 'Role category saved. Run command registration on the server if you added or renamed a command.';
+    }
+
+    uiState.roleCategoryTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.roleCategoryMessage = error.message;
+    uiState.roleCategoryTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs(`#role-category-form button[value="${action}"]`);
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
   }
 }
 

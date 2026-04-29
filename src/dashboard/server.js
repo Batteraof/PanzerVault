@@ -13,6 +13,7 @@ const communitySettingsService = require('../modules/config/services/communitySe
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
 const teamRoleService = require('../modules/config/services/teamRoleService');
 const publicRoleService = require('../modules/config/services/publicRoleService');
+const roleCategoryService = require('../modules/config/services/roleCategoryService');
 const gallerySettingsService = require('../modules/gallery/services/gallerySettingsService');
 const galleryTagService = require('../modules/gallery/services/galleryTagService');
 const ticketSettingsService = require('../modules/tickets/services/ticketSettingsService');
@@ -350,6 +351,24 @@ function asNullableId(value) {
 function parseEventDateInput(value) {
   const normalized = String(value || '').trim().replace('T', ' ');
   return parseLocalDateTimeString(normalized);
+}
+
+async function serializeRoleCategories(guildId, categories) {
+  const result = [];
+  for (const category of categories || []) {
+    const options = await roleCategoryService.listCategoryOptions(guildId, category.category_key);
+    result.push({
+      categoryKey: category.category_key,
+      commandName: category.command_name,
+      label: category.label,
+      description: category.description || '',
+      selectionMode: category.selection_mode,
+      isEnabled: category.is_enabled,
+      sortOrder: category.sort_order,
+      options: serializeSelectableRoles(options)
+    });
+  }
+  return result;
 }
 
 function serverTimeZone() {
@@ -862,6 +881,7 @@ app.get('/api/settings', async (req, res, next) => {
       regionRoles,
       teamRoles,
       publicRoles,
+      roleCategories,
       metadata
     ] = await Promise.all([
       botSettingsService.ensureGuildSettings(guildId),
@@ -875,6 +895,7 @@ app.get('/api/settings', async (req, res, next) => {
       onboardingRoleService.listRolesByGroup(guildId, 'region'),
       teamRoleService.listTeamRoles(guildId),
       publicRoleService.listPublicRoles(guildId),
+      roleCategoryService.listCategories(guildId, { includeDisabled: true }),
       fetchGuildMetadata(guildId)
     ]);
 
@@ -905,6 +926,7 @@ app.get('/api/settings', async (req, res, next) => {
       galleryTags,
       teamRoles: serializeSelectableRoles(teamRoles),
       publicRoles: serializeSelectableRoles(publicRoles),
+      roleCategories: await serializeRoleCategories(guildId, roleCategories),
       onboarding,
       metadata,
       serverTimeZone: serverTimeZone(),
@@ -1175,6 +1197,50 @@ app.post('/api/settings/team-roles', async (req, res, next) => {
       teamRole,
       teamRoles: serializeSelectableRoles(teamRoles)
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/role-categories', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const category = await roleCategoryService.upsertCategory(guildId, {
+      categoryKey: req.body.categoryKey,
+      commandName: req.body.commandName,
+      label: req.body.label,
+      description: req.body.description,
+      selectionMode: req.body.selectionMode,
+      isEnabled: req.body.isEnabled !== false,
+      sortOrder: Number.parseInt(req.body.sortOrder, 10) || 0
+    });
+
+    res.status(201).json({ category });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/settings/role-categories/:categoryKey/options', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const option = await roleCategoryService.upsertCategoryOption(guildId, req.params.categoryKey, {
+      label: req.body.label,
+      roleId: asNullableId(req.body.roleId),
+      sortOrder: Number.parseInt(req.body.sortOrder, 10) || 0
+    });
+
+    res.status(201).json({ option });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/settings/role-categories/:categoryKey/options/:optionKey', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    await roleCategoryService.disableCategoryOption(guildId, req.params.categoryKey, req.params.optionKey);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

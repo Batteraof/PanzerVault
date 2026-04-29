@@ -5,7 +5,9 @@ const config = require('../config');
 const logger = require('../logger');
 const botCommand = require('./bot');
 const roleCommand = require('./role');
+const skillCommand = require('./skill');
 const teamCommand = require('./team');
+const roleCategoryCommand = require('./roleCategoryCommand');
 const rankCommand = require('./rank');
 const rankResetCommand = require('./rankReset');
 const galleryCommand = require('./gallery');
@@ -27,9 +29,13 @@ async function registerCommands() {
   }
 
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
+  const dynamicCategoryCommands = config.discord.guildId
+    ? await roleCategoryCommand.buildDynamicCategoryCommands(config.discord.guildId)
+    : [];
   const commands = [
     botCommand.data.toJSON(),
     roleCommand.data.toJSON(),
+    skillCommand.data.toJSON(),
     teamCommand.data.toJSON(),
     rankCommand.data.toJSON(),
     rankResetCommand.data.toJSON(),
@@ -44,7 +50,8 @@ async function registerCommands() {
     ticketManageCommand.data.toJSON(),
     eventCommand.data.toJSON(),
     spotlightCommand.data.toJSON(),
-    spotlightManageCommand.data.toJSON()
+    spotlightManageCommand.data.toJSON(),
+    ...dynamicCategoryCommands.map(command => command.toJSON())
   ];
 
   if (config.discord.guildId) {

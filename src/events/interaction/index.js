@@ -1,7 +1,9 @@
 const { MessageFlags } = require('discord.js');
 const botCommand = require('../../commands/bot');
 const roleCommand = require('../../commands/role');
+const skillCommand = require('../../commands/skill');
 const teamCommand = require('../../commands/team');
+const roleCategoryCommand = require('../../commands/roleCategoryCommand');
 const rankCommand = require('../../commands/rank');
 const rankResetCommand = require('../../commands/rankReset');
 const galleryCommand = require('../../commands/gallery');
@@ -26,6 +28,7 @@ const logger = require('../../logger');
 const slashCommands = new Map([
   [botCommand.data.name, botCommand],
   [roleCommand.data.name, roleCommand],
+  [skillCommand.data.name, skillCommand],
   [teamCommand.data.name, teamCommand],
   [rankCommand.data.name, rankCommand],
   [rankResetCommand.data.name, rankResetCommand],
@@ -91,8 +94,17 @@ async function handleInteractionCreate(interaction) {
 
     if (!interaction.isChatInputCommand()) return;
 
-    const command = slashCommands.get(interaction.commandName);
-    if (!command) {
+      const command = slashCommands.get(interaction.commandName);
+      if (!command) {
+        const category = interaction.guild
+          ? await require('../../modules/config/services/roleCategoryService').findByCommandName(interaction.guild.id, interaction.commandName)
+          : null;
+        if (category) {
+          await roleCategoryCommand.execute(interaction, category);
+          return;
+        }
+      }
+      if (!command) {
       await interaction.reply({
         content: 'That command is no longer active. Refresh Discord or wait a moment and try again.',
         flags: MessageFlags.Ephemeral

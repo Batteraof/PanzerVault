@@ -1,5 +1,7 @@
 const {
   ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   EmbedBuilder,
   MessageFlags,
   ModalBuilder,
@@ -17,6 +19,8 @@ const {
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
 const publicRoleService = require('../../modules/config/services/publicRoleService');
+const roleCategoryService = require('../../modules/config/services/roleCategoryService');
+const memberRoleCategoryService = require('../../modules/config/services/memberRoleCategoryService');
 const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
 const memberIntroductionRepository = require('../../db/repositories/memberIntroductionRepository');
 const { buildTeamRolePicker } = require('../../lib/teamRolePicker');
@@ -50,6 +54,7 @@ function getGeneralChannelId() {
 }
 
 function isRoleSelect(customId) {
+  if (String(customId || '').startsWith(`${customIds.ROLE_CATEGORY_SELECT}:`)) return true;
   return [
     customIds.SKILL_SELECT,
     customIds.REGION_SELECT,
@@ -395,6 +400,45 @@ async function handleRoleButton(interaction) {
 }
 
 async function handleRoleSelect(interaction) {
+  if (interaction.customId.startsWith(`${customIds.ROLE_CATEGORY_SELECT}:`)) {
+    const categoryKey = interaction.customId.split(':')[1];
+    const categories = await roleCategoryService.listCategories(interaction.guild.id);
+    const category = categories.find(item => item.category_key === categoryKey);
+    if (!category) {
+      await respondEphemeral(interaction, 'That role category is not available right now.');
+      return true;
+    }
+
+    const result = await memberRoleCategoryService.setMemberCategoryRoles(interaction.member, category, interaction.values);
+    if (!result.ok) {
+      await respondEphemeral(interaction, result.message);
+      return true;
+    }
+
+    let message = result.added.length > 0
+      ? `Updated ${category.label}: ${result.added.join(', ')}.`
+      : `Your ${category.label.toLowerCase()} roles are already up to date.`;
+    const components = [];
+
+    if (category.category_key === 'skill' && result.selectedOptions.some(option => isCoachEligible(option.option_key))) {
+      const settings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+      if (settings.coach_role_id) {
+        message += `\nYou can also tap **Toggle Helper Role** if you want beginners to know you are available to help.`;
+        components.push(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(customIds.COACH_TOGGLE)
+              .setLabel('I can help beginners')
+              .setStyle(ButtonStyle.Primary)
+          )
+        );
+      }
+    }
+
+    await respondEphemeral(interaction, { content: message, components });
+    return true;
+  }
+
   if (interaction.customId === customIds.SKILL_SELECT) {
     return assignRoleFromGroup(interaction, 'skill', interaction.values[0]);
   }

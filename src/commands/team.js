@@ -1,24 +1,25 @@
-const {
-  MessageFlags,
-  SlashCommandBuilder
-} = require('discord.js');
-const { buildTeamRolePicker } = require('../lib/teamRolePicker');
-const memberTeamRoleService = require('../modules/config/services/memberTeamRoleService');
+const { MessageFlags, SlashCommandBuilder } = require('discord.js');
+const { buildRoleCategoryPicker } = require('../lib/roleCategoryPicker');
+const botSettingsService = require('../modules/config/services/botSettingsService');
+const roleCategoryService = require('../modules/config/services/roleCategoryService');
+
+async function assertRolesChannel(interaction) {
+  const settings = await botSettingsService.ensureGuildSettings(interaction.guild.id);
+  const roleChannelId = settings.role_panel_channel_id;
+  if (roleChannelId && interaction.channelId !== roleChannelId) {
+    await interaction.reply({
+      content: `Use this in <#${roleChannelId}> so role changes stay in the roles channel.`,
+      flags: MessageFlags.Ephemeral
+    });
+    return false;
+  }
+  return true;
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('team')
-    .setDescription('Choose or clear your team role.')
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('choose')
-        .setDescription('Choose your team role.')
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('clear')
-        .setDescription('Remove your current team role.')
-    ),
+    .setDescription('Choose or update your team role.'),
 
   async execute(interaction) {
     if (!interaction.inGuild()) {
@@ -26,21 +27,11 @@ module.exports = {
       return;
     }
 
-    const subcommand = interaction.options.getSubcommand();
-    if (subcommand === 'clear') {
-      const result = await memberTeamRoleService.clearMemberTeamRoles(interaction.member);
-      await interaction.reply({
-        content: result.ok
-          ? (result.removed.length > 0 ? `Removed ${result.removed.join(', ')}.` : 'You do not have a configured team role right now.')
-          : result.message,
-        flags: MessageFlags.Ephemeral
-      });
-      return;
-    }
+    if (!(await assertRolesChannel(interaction))) return;
 
-    const picker = await buildTeamRolePicker(interaction.guild.id);
+    const category = await roleCategoryService.findByCommandName(interaction.guild.id, 'team');
     await interaction.reply({
-      ...picker,
+      ...await buildRoleCategoryPicker(interaction.guild.id, category),
       flags: MessageFlags.Ephemeral
     });
   }

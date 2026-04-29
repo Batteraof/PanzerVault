@@ -9,13 +9,10 @@ const SKILL_OPTIONS = [
 
 const REGION_OPTIONS = [
   { key: 'eu', label: config.regionRoleLabels.eu, sortOrder: 10 },
-  { key: 'uk', label: config.regionRoleLabels.uk, sortOrder: 20 },
   { key: 'na', label: config.regionRoleLabels.na, sortOrder: 30 },
-  { key: 'latam', label: config.regionRoleLabels.latam, sortOrder: 40 },
   { key: 'africa', label: config.regionRoleLabels.africa, sortOrder: 50 },
   { key: 'sa', label: config.regionRoleLabels.sa, sortOrder: 60 },
   { key: 'ea', label: config.regionRoleLabels.ea, sortOrder: 70 },
-  { key: 'sea', label: config.regionRoleLabels.sea, sortOrder: 80 },
   { key: 'oce', label: config.regionRoleLabels.oce, sortOrder: 90 }
 ];
 
