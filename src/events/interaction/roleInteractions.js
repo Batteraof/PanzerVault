@@ -17,6 +17,7 @@ const {
 const botSettingsService = require('../../modules/config/services/botSettingsService');
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
+const publicRoleService = require('../../modules/config/services/publicRoleService');
 const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
 const memberIntroductionRepository = require('../../db/repositories/memberIntroductionRepository');
 const { buildTeamRolePicker } = require('../../lib/teamRolePicker');
@@ -34,7 +35,8 @@ function isRoleButton(customId) {
     customIds.TEAM_MENU,
     customIds.ROLES_MENU,
     customIds.AGREE_RULES,
-    customIds.COACH_TOGGLE
+    customIds.COACH_TOGGLE,
+    customIds.PUBLIC_ROLE_CLEAR
   ].includes(customId);
 }
 
@@ -52,6 +54,7 @@ function isRoleSelect(customId) {
     customIds.SKILL_SELECT,
     customIds.REGION_SELECT,
     customIds.TEAM_SELECT,
+    customIds.PUBLIC_ROLE_SELECT,
     customIds.ROLE_SELECT
   ].includes(customId);
 }
@@ -172,6 +175,61 @@ async function handleCoachToggle(interaction) {
 
   await interaction.member.roles.add(coachRole);
   await respondEphemeral(interaction, `Helper role enabled. You now have ${coachRole} so beginners know they can ask you for help.`);
+  return true;
+}
+
+async function setPublicRoles(interaction, selectedValues) {
+  const publicRoles = await publicRoleService.listPublicRoles(interaction.guild.id);
+  const selectedKeys = new Set(selectedValues || []);
+  const botMember = interaction.guild.members.me;
+
+  if (publicRoles.length === 0) {
+    await respondEphemeral(interaction, 'No community roles are configured yet.');
+    return true;
+  }
+
+  if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+    await respondEphemeral(interaction, 'I do not have permission to manage roles.');
+    return true;
+  }
+
+  const guildRoles = publicRoles
+    .map(role => ({
+      option: role,
+      role: interaction.guild.roles.cache.get(role.role_id)
+    }))
+    .filter(item => item.role);
+
+  const blockedRole = guildRoles.find(item => botMember.roles.highest.comparePositionTo(item.role) <= 0);
+  if (blockedRole) {
+    await respondEphemeral(interaction, `My role is too low to manage ${blockedRole.role}.`);
+    return true;
+  }
+
+  const added = [];
+  const removed = [];
+
+  for (const item of guildRoles) {
+    const shouldHaveRole = selectedKeys.has(item.option.option_key);
+    const hasRole = interaction.member.roles.cache.has(item.role.id);
+
+    if (shouldHaveRole && !hasRole) {
+      await interaction.member.roles.add(item.role);
+      added.push(item.role);
+    }
+
+    if (!shouldHaveRole && hasRole) {
+      await interaction.member.roles.remove(item.role);
+      removed.push(item.role);
+    }
+  }
+
+  const lines = [];
+  if (added.length > 0) lines.push(`Added: ${added.join(', ')}`);
+  if (removed.length > 0) lines.push(`Removed: ${removed.join(', ')}`);
+  if (lines.length === 0) lines.push('Your community roles are already up to date.');
+
+  await respondEphemeral(interaction, lines.join('\n'));
   return true;
 }
 
@@ -338,6 +396,10 @@ async function handleRoleButton(interaction) {
     return handleCoachToggle(interaction);
   }
 
+  if (interaction.customId === customIds.PUBLIC_ROLE_CLEAR) {
+    return setPublicRoles(interaction, []);
+  }
+
   return null;
 }
 
@@ -360,6 +422,10 @@ async function handleRoleSelect(interaction) {
       ? `Done. Your team role is now ${result.role}.`
       : result.message);
     return true;
+  }
+
+  if (interaction.customId === customIds.PUBLIC_ROLE_SELECT) {
+    return setPublicRoles(interaction, interaction.values);
   }
 
   return false;

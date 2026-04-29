@@ -4,6 +4,7 @@ const botSettingsRepository = require('../../../db/repositories/botSettingsRepos
 function defaultsFromEnv() {
   return {
     welcomeChannelId: config.channels.welcome || null,
+    rolePanelChannelId: config.channels.rolePanel || null,
     rulesEnabled: config.onboarding.rulesEnabled,
     rulesChannelId: config.channels.rules || null,
     rulesVerifiedRoleId: config.channels.verifiedRoleId || null
@@ -25,6 +26,13 @@ async function updateWelcomeEnabled(guildId, enabled) {
   await ensureGuildSettings(guildId);
   return botSettingsRepository.updateSettings(guildId, {
     welcome_enabled: enabled
+  });
+}
+
+async function updateRolePanelChannel(guildId, channelId) {
+  await ensureGuildSettings(guildId);
+  return botSettingsRepository.updateSettings(guildId, {
+    role_panel_channel_id: channelId
   });
 }
 
@@ -53,6 +61,7 @@ module.exports = {
   ensureGuildSettings,
   updateWelcomeChannel,
   updateWelcomeEnabled,
+  updateRolePanelChannel,
   updateRulesChannel,
   updateRulesVerifiedRole,
   updateRulesEnabled

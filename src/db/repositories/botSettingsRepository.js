@@ -10,20 +10,23 @@ async function ensureSettings(guildId, defaults = {}, client) {
     INSERT INTO guild_bot_settings (
       guild_id,
       welcome_channel_id,
+      role_panel_channel_id,
       rules_enabled,
       rules_channel_id,
       rules_verified_role_id
     )
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, $5, $6)
     ON CONFLICT (guild_id)
     DO UPDATE SET
       welcome_channel_id = COALESCE(guild_bot_settings.welcome_channel_id, EXCLUDED.welcome_channel_id),
+      role_panel_channel_id = COALESCE(guild_bot_settings.role_panel_channel_id, EXCLUDED.role_panel_channel_id),
       rules_channel_id = COALESCE(guild_bot_settings.rules_channel_id, EXCLUDED.rules_channel_id),
       rules_verified_role_id = COALESCE(guild_bot_settings.rules_verified_role_id, EXCLUDED.rules_verified_role_id)
     `,
     [
       guildId,
       defaults.welcomeChannelId || null,
+      defaults.rolePanelChannelId || null,
       defaults.rulesEnabled ?? false,
       defaults.rulesChannelId || null,
       defaults.rulesVerifiedRoleId || null
@@ -50,6 +53,7 @@ async function updateSettings(guildId, updates, client) {
   const allowed = [
     'welcome_enabled',
     'welcome_channel_id',
+    'role_panel_channel_id',
     'rules_enabled',
     'rules_channel_id',
     'rules_verified_role_id'

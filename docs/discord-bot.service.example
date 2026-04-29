@@ -1,13 +1,13 @@
 [Unit]
-Description=Discord Leveling Bot
+Description=PanzerVault Bot
 After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/discord-leveling-bot
-EnvironmentFile=/opt/discord-leveling-bot/.env
-ExecStart=/usr/bin/node /opt/discord-leveling-bot/src/index.js
+WorkingDirectory=/opt/panzervault-bot
+EnvironmentFile=/opt/panzervault-bot/.env
+ExecStart=/usr/bin/node /opt/panzervault-bot/src/index.js
 Restart=always
 RestartSec=10
 User=discordbot

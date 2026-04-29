@@ -6,8 +6,10 @@ const {
 } = require('discord.js');
 const config = require('../config');
 const customIds = require('./customIds');
+const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
+const publicRoleService = require('../modules/config/services/publicRoleService');
 const logger = require('../logger');
 
 let rolePanelMessageId = config.rolePanelMessageId;
@@ -27,16 +29,20 @@ function buildSelectMenu(customId, placeholder, options) {
 }
 
 async function buildRolePanelData(guildId) {
-  const [communitySettings, skillRoles, regionRoles] = await Promise.all([
+  const [botSettings, communitySettings, skillRoles, regionRoles, publicRoles] = await Promise.all([
+    botSettingsService.ensureGuildSettings(guildId),
     communitySettingsService.ensureGuildSettings(guildId),
     onboardingRoleService.listRolesByGroup(guildId, 'skill'),
-    onboardingRoleService.listRolesByGroup(guildId, 'region')
+    onboardingRoleService.listRolesByGroup(guildId, 'region'),
+    publicRoleService.listPublicRoles(guildId)
   ]);
 
   return {
+    botSettings,
     communitySettings,
     skillRoles,
-    regionRoles
+    regionRoles,
+    publicRoles
   };
 }
 
@@ -57,6 +63,16 @@ async function buildRolePanelComponents(guildId) {
     components.push(
       new ActionRowBuilder().addComponents(
         buildSelectMenu(customIds.REGION_SELECT, 'Choose your region', data.regionRoles)
+      )
+    );
+  }
+
+  if (data.publicRoles.length > 0) {
+    const shownRoles = data.publicRoles.slice(0, 25);
+    components.push(
+      new ActionRowBuilder().addComponents(
+        buildSelectMenu(customIds.PUBLIC_ROLE_SELECT, 'Choose your community roles', shownRoles)
+          .setMaxValues(shownRoles.length)
       )
     );
   }
@@ -94,6 +110,13 @@ function buildRolePanelContent(data) {
     lines.push(`- Beginners can watch for members with <@&${data.communitySettings.coach_role_id}>.`);
   }
 
+  if (data.publicRoles.length > 0) {
+    lines.push('- Pick your optional community roles from the menu below.');
+    if (data.publicRoles.length > 25) {
+      lines.push('- Only the first 25 configured community roles can be shown in one Discord menu.');
+    }
+  }
+
   if (!botOnboardingEnabled) {
     lines.push('- The bot still manages XP rewards, tickets, media flows, events, and admin tools.');
   }
@@ -108,16 +131,20 @@ async function findExistingRolePanelMessage(channel, clientUserId) {
     (
       message.content.includes('Select your onboarding roles below') ||
       message.content.includes('Discord Onboarding handles your platform') ||
-      message.content.includes('**Role setup:**')
+      message.content.includes('**Role setup:**') ||
+      message.content.includes('**Choose your roles:**')
     ) &&
     message.components.length > 0
   );
 }
 
 async function setupRolePanel(client) {
-  const channel = await client.channels.fetch(config.channels.rolePanel);
+  const guildId = config.discord.guildId || client.guilds.cache.first()?.id;
+  const botSettings = guildId ? await botSettingsService.ensureGuildSettings(guildId) : null;
+  const channelId = botSettings?.role_panel_channel_id || config.channels.rolePanel;
+  const channel = channelId ? await client.channels.fetch(channelId).catch(() => null) : null;
   if (!channel || !channel.isTextBased()) {
-    logger.warn('Role panel channel is missing or is not text based', config.channels.rolePanel);
+    logger.warn('Role panel channel is missing or is not text based', channelId);
     return;
   }
 
@@ -137,7 +164,7 @@ async function setupRolePanel(client) {
 
   const data = await buildRolePanelData(channel.guild.id);
   const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
-  const title = botOnboardingEnabled ? 'Select your onboarding roles below' : 'Role setup';
+  const title = data.publicRoles.length > 0 ? 'Choose your roles' : (botOnboardingEnabled ? 'Select your onboarding roles below' : 'Role setup');
   const content = `**${title}:**\n${buildRolePanelContent(data)}`;
   const components = await buildRolePanelComponents(channel.guild.id);
 

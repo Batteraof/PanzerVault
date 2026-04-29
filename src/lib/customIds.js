@@ -11,6 +11,8 @@ module.exports = {
   SKILL_SELECT: 'skill_select',
   REGION_SELECT: 'region_select',
   TEAM_SELECT: 'team_select',
+  PUBLIC_ROLE_SELECT: 'public_role_select',
+  PUBLIC_ROLE_CLEAR: 'public_role_clear',
   COACH_TOGGLE: 'coach_toggle',
   EVENT_RSVP_PREFIX: 'event_rsvp',
   EVENT_ATTEND_PREFIX: 'event_attend',

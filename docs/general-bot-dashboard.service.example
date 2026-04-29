@@ -1,13 +1,13 @@
 [Unit]
-Description=General Bot Dashboard
+Description=PanzerVault Bot Dashboard
 After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/batteraof/discord-bot
-EnvironmentFile=/home/batteraof/discord-bot/.env
-ExecStart=/usr/bin/node /home/batteraof/discord-bot/src/dashboard/server.js
+WorkingDirectory=/home/batteraof/panzervault-bot
+EnvironmentFile=/home/batteraof/panzervault-bot/.env
+ExecStart=/usr/bin/node /home/batteraof/panzervault-bot/src/dashboard/server.js
 Restart=always
 RestartSec=10
 User=batteraof

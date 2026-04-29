@@ -385,6 +385,8 @@ Recommended `systemd` service example:
 
 - `docs/general-bot-dashboard.service.example`
 
+The service file keeps its historical filename, but it runs the PanzerVault Bot dashboard.
+
 Typical Ubuntu install flow:
 
 ```bash

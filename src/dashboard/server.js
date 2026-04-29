@@ -12,6 +12,7 @@ const botSettingsService = require('../modules/config/services/botSettingsServic
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
 const teamRoleService = require('../modules/config/services/teamRoleService');
+const publicRoleService = require('../modules/config/services/publicRoleService');
 const gallerySettingsService = require('../modules/gallery/services/gallerySettingsService');
 const galleryTagService = require('../modules/gallery/services/galleryTagService');
 const ticketSettingsService = require('../modules/tickets/services/ticketSettingsService');
@@ -86,7 +87,7 @@ function requireDashboardAuth(req, res, next) {
     return next();
   }
 
-  res.set('WWW-Authenticate', 'Basic realm="General Bot Dashboard", charset="UTF-8"');
+  res.set('WWW-Authenticate', 'Basic realm="PanzerVault Bot Dashboard", charset="UTF-8"');
   return res.status(401).send('Authentication required.');
 }
 
@@ -162,7 +163,7 @@ async function discordRequest(route, options = {}) {
     method,
     headers: {
       Authorization: `Bot ${process.env.TOKEN}`,
-      'User-Agent': 'GeneralBotDashboard/1.0',
+      'User-Agent': 'PanzerVaultBotDashboard/1.0',
       ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {})
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined
@@ -378,6 +379,7 @@ function buildBotUpdates(body = {}) {
 
   const idKeys = {
     welcomeChannelId: 'welcome_channel_id',
+    rolePanelChannelId: 'role_panel_channel_id',
     rulesChannelId: 'rules_channel_id',
     rulesVerifiedRoleId: 'rules_verified_role_id'
   };
@@ -846,6 +848,7 @@ app.get('/api/settings', async (req, res, next) => {
       skillRoles,
       regionRoles,
       teamRoles,
+      publicRoles,
       metadata
     ] = await Promise.all([
       botSettingsService.ensureGuildSettings(guildId),
@@ -858,6 +861,7 @@ app.get('/api/settings', async (req, res, next) => {
       onboardingRoleService.listRolesByGroup(guildId, 'skill'),
       onboardingRoleService.listRolesByGroup(guildId, 'region'),
       teamRoleService.listTeamRoles(guildId),
+      publicRoleService.listPublicRoles(guildId),
       fetchGuildMetadata(guildId)
     ]);
 
@@ -887,6 +891,7 @@ app.get('/api/settings', async (req, res, next) => {
       rewardRoles,
       galleryTags,
       teamRoles: serializeSelectableRoles(teamRoles),
+      publicRoles: serializeSelectableRoles(publicRoles),
       onboarding,
       metadata,
       readiness
@@ -1184,6 +1189,53 @@ app.delete('/api/settings/team-roles/:optionKey', async (req, res, next) => {
   }
 });
 
+app.post('/api/settings/public-roles', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const label = String(req.body.label || '').trim();
+    const roleId = asNullableId(req.body.roleId);
+    const sortOrder = Number.parseInt(req.body.sortOrder, 10);
+
+    if (!label) {
+      throw badRequest('Provide a public role label.');
+    }
+
+    if (!roleId) {
+      throw badRequest('Choose a Discord role.');
+    }
+
+    const publicRole = await publicRoleService.upsertPublicRole(guildId, label, roleId, sortOrder);
+    const publicRoles = await publicRoleService.listPublicRoles(guildId);
+
+    res.status(201).json({
+      publicRole,
+      publicRoles: serializeSelectableRoles(publicRoles)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/settings/public-roles/:optionKey', async (req, res, next) => {
+  try {
+    const guildId = resolveGuildId(req);
+    const optionKey = String(req.params.optionKey || '').trim();
+    if (!optionKey) {
+      throw badRequest('Choose a public role option to remove.');
+    }
+
+    const publicRole = await publicRoleService.disablePublicRole(guildId, optionKey);
+    const publicRoles = await publicRoleService.listPublicRoles(guildId);
+
+    res.json({
+      publicRole,
+      publicRoles: serializeSelectableRoles(publicRoles)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
@@ -1199,5 +1251,5 @@ app.listen(port, host, () => {
   if (!dashboardPassword) {
     logger.warn('Dashboard password is not set. Direct access is limited to localhost.');
   }
-  logger.info(`General Bot dashboard running on http://${host}:${port}`);
+  logger.info(`PanzerVault Bot dashboard running on http://${host}:${port}`);
 });

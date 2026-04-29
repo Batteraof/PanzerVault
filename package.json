@@ -1,7 +1,7 @@
 {
-  "name": "discord-leveling-bot",
+  "name": "panzervault-bot",
   "version": "1.0.0",
-  "description": "Discord.js bot with welcome, self-role panel, and PostgreSQL-backed leveling foundation.",
+  "description": "PanzerVault Discord bot with onboarding, roles, events, tickets, dashboard tools, and PostgreSQL-backed leveling.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

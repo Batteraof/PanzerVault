@@ -53,6 +53,8 @@ const uiState = {
   rewardTone: 'info',
   teamMessage: '',
   teamTone: 'info',
+  publicRoleMessage: '',
+  publicRoleTone: 'info',
   onboardingMessage: '',
   onboardingTone: 'info'
 };
@@ -277,6 +279,10 @@ function getRewardRoles() {
 
 function getTeamRoles() {
   return state.settings?.teamRoles || [];
+}
+
+function getPublicRoles() {
+  return state.settings?.publicRoles || [];
 }
 
 function getGalleryTags() {
@@ -551,7 +557,13 @@ function renderBotSettings() {
             <small>The rules panel and verification button live here.</small>
           </label>
 
-          <label class="field field-span-2">
+          <label class="field">
+            <span>Role panel channel</span>
+            <select name="rolePanelChannelId">${selectOptions(metadata.channels, bot.role_panel_channel_id, 'Choose the roles channel')}</select>
+            <small>The always-on member role picker is posted and refreshed here.</small>
+          </label>
+
+          <label class="field">
             <span>Verified role</span>
             <select name="rulesVerifiedRoleId">${selectOptions(metadata.roles, bot.rules_verified_role_id, 'Choose the verified member role')}</select>
             <small>Members receive this after accepting the rules.</small>
@@ -971,6 +983,66 @@ function renderTeamSettings() {
   });
 }
 
+function renderPublicRoleSettings() {
+  const publicRoles = getPublicRoles();
+  const metadata = getMetadata();
+
+  html('#public-role-settings', `
+    <div class="panel-note">Configure optional roles shown in the permanent #roles panel. Members can choose multiple active roles from the dropdown.</div>
+    <form id="public-role-settings-form" class="form-stack">
+      <section class="settings-section">
+        <h3>Add or update role</h3>
+        <div class="form-grid">
+          <label class="field">
+            <span>Menu label</span>
+            <input type="text" name="publicRoleLabel" maxlength="60" placeholder="Events, Vietnam, PC..." required>
+            <small>This is the label members see in the roles menu.</small>
+          </label>
+
+          <label class="field">
+            <span>Discord role</span>
+            <select name="publicRoleId" required>${selectOptions(metadata.roles, '', 'Choose a role')}</select>
+            <small>The role assigned when members select this option.</small>
+          </label>
+
+          <label class="field">
+            <span>Sort order</span>
+            <input type="number" name="publicRoleSortOrder" step="1" value="0">
+            <small>Lower numbers appear first.</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Active role menu options</h3>
+        <div class="reward-list">
+          ${publicRoles.map(role => `
+            <div class="reward-row">
+              <div>
+                <strong>${escapeHtml(role.label)}</strong>
+                <span>${escapeHtml(labelFor(metadata.roles, role.roleId, `Role ${role.roleId}`))} - order ${escapeHtml(formatCount(role.sortOrder || 0))}</span>
+              </div>
+              <button class="button-secondary compact-button public-role-remove-button" type="button" data-option-key="${escapeHtml(role.optionKey)}">Remove</button>
+            </div>
+          `).join('') || renderEmpty('No public roles configured yet.', 'Add roles here and the bot will show them in the permanent roles panel.')}
+        </div>
+      </section>
+
+      ${renderStatusMessage(uiState.publicRoleMessage, uiState.publicRoleTone)}
+
+      <div class="action-row">
+        <button class="button-primary" type="submit">Save Role Option</button>
+      </div>
+    </form>
+  `);
+
+  const form = qs('#public-role-settings-form');
+  if (form) form.addEventListener('submit', handlePublicRoleSettingsSubmit);
+  document.querySelectorAll('.public-role-remove-button').forEach(button => {
+    button.addEventListener('click', handlePublicRoleRemoveClick);
+  });
+}
+
 function renderOnboardingSettings() {
   const onboarding = getOnboarding();
   const community = getCommunitySettings();
@@ -1041,6 +1113,7 @@ function renderSettings() {
   renderTicketSettings();
   renderRewardSettings();
   renderTeamSettings();
+  renderPublicRoleSettings();
   renderOnboardingSettings();
 }
 
@@ -1137,6 +1210,7 @@ async function handleBotSettingsSubmit(event) {
         welcomeEnabled: form.elements.welcomeEnabled.checked,
         rulesEnabled: form.elements.rulesEnabled.checked,
         welcomeChannelId: form.elements.welcomeChannelId.value,
+        rolePanelChannelId: form.elements.rolePanelChannelId.value,
         rulesChannelId: form.elements.rulesChannelId.value,
         rulesVerifiedRoleId: form.elements.rulesVerifiedRoleId.value
       })
@@ -1551,6 +1625,70 @@ async function handleTeamRemoveClick(event) {
     console.error(error);
     uiState.teamMessage = error.message;
     uiState.teamTone = 'error';
+    renderSettings();
+  }
+}
+
+async function handlePublicRoleSettingsSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const originalLabel = button.textContent;
+
+  uiState.publicRoleMessage = 'Saving role option...';
+  uiState.publicRoleTone = 'info';
+  renderSettings();
+
+  try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    await apiRequest('/api/settings/public-roles', {
+      method: 'POST',
+      body: JSON.stringify({
+        label: form.elements.publicRoleLabel.value,
+        roleId: form.elements.publicRoleId.value,
+        sortOrder: form.elements.publicRoleSortOrder.value
+      })
+    });
+
+    uiState.publicRoleMessage = 'Role option saved.';
+    uiState.publicRoleTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.publicRoleMessage = error.message;
+    uiState.publicRoleTone = 'error';
+    renderSettings();
+  } finally {
+    const refreshedButton = qs('#public-role-settings-form button[type="submit"]');
+    if (refreshedButton) {
+      refreshedButton.disabled = false;
+      refreshedButton.textContent = originalLabel;
+    }
+  }
+}
+
+async function handlePublicRoleRemoveClick(event) {
+  const optionKey = event.currentTarget.dataset.optionKey;
+  if (!optionKey) return;
+
+  uiState.publicRoleMessage = 'Removing role option...';
+  uiState.publicRoleTone = 'info';
+  renderSettings();
+
+  try {
+    await apiRequest(`/api/settings/public-roles/${encodeURIComponent(optionKey)}`, {
+      method: 'DELETE'
+    });
+
+    uiState.publicRoleMessage = 'Role option removed.';
+    uiState.publicRoleTone = 'success';
+    await refreshSettingsView();
+  } catch (error) {
+    console.error(error);
+    uiState.publicRoleMessage = error.message;
+    uiState.publicRoleTone = 'error';
     renderSettings();
   }
 }
