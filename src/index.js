@@ -1,7 +1,8 @@
 const {
   Client,
   Events,
-  GatewayIntentBits
+  GatewayIntentBits,
+  Partials
 } = require('discord.js');
 const config = require('./config');
 const db = require('./db/client');
@@ -11,6 +12,7 @@ const { handleGuildMemberAdd, handleGuildMemberUpdate } = require('./events/guil
 const { handleInteractionCreate } = require('./events/interaction');
 const { handleMessageCreate } = require('./events/message');
 const { handleMessageDelete } = require('./events/message/delete');
+const { handleMessageReactionAdd, handleMessageReactionRemove } = require('./events/reaction');
 const { handleVoiceStateUpdate } = require('./events/voice');
 const voiceTrackingService = require('./modules/leveling/services/voiceTrackingService');
 const communitySchedulerService = require('./modules/community/services/communitySchedulerService');
@@ -21,9 +23,15 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates
+  ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
   ]
 });
 
@@ -60,6 +68,18 @@ client.on('messageCreate', message => {
 client.on('messageDelete', message => {
   handleMessageDelete(message).catch(error => {
     logger.warn('messageDelete handler failed', error);
+  });
+});
+
+client.on('messageReactionAdd', (reaction, user) => {
+  handleMessageReactionAdd(reaction, user).catch(error => {
+    logger.warn('messageReactionAdd handler failed', error);
+  });
+});
+
+client.on('messageReactionRemove', (reaction, user) => {
+  handleMessageReactionRemove(reaction, user).catch(error => {
+    logger.warn('messageReactionRemove handler failed', error);
   });
 });
 

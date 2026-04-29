@@ -32,6 +32,36 @@ async function upsertRoleOption(guildId, groupKey, optionKey, label, roleId, sor
   return result.rows[0] || null;
 }
 
+async function upsertRoleOptionWithEmoji(guildId, groupKey, optionKey, label, roleId, sortOrder, emoji, client) {
+  const result = await executor(client).query(
+    `
+    INSERT INTO guild_selectable_roles (
+      guild_id,
+      group_key,
+      option_key,
+      label,
+      role_id,
+      sort_order,
+      emoji,
+      is_active
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+    ON CONFLICT (guild_id, group_key, option_key)
+    DO UPDATE SET
+      label = EXCLUDED.label,
+      role_id = EXCLUDED.role_id,
+      sort_order = EXCLUDED.sort_order,
+      emoji = EXCLUDED.emoji,
+      is_active = true,
+      updated_at = now()
+    RETURNING *
+    `,
+    [guildId, groupKey, optionKey, label, roleId, sortOrder, emoji]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function deactivateRoleOption(guildId, groupKey, optionKey, client) {
   const result = await executor(client).query(
     `
@@ -79,6 +109,7 @@ async function listAllActive(guildId, client) {
 
 module.exports = {
   upsertRoleOption,
+  upsertRoleOptionWithEmoji,
   deactivateRoleOption,
   listActiveByGroup,
   listAllActive

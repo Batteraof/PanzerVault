@@ -15,8 +15,15 @@ async function listPublicRoles(guildId, client) {
   return selectableRoleRepository.listActiveByGroup(guildId, PUBLIC_GROUP_KEY, client);
 }
 
-async function upsertPublicRole(guildId, label, roleId, sortOrder = 0) {
+function emojiIdentifier(value) {
+  const normalized = String(value || '').trim();
+  const customMatch = normalized.match(/^<a?:[^:]+:(\d+)>$/);
+  return customMatch ? customMatch[1] : normalized;
+}
+
+async function upsertPublicRole(guildId, label, roleId, emoji, sortOrder = 0) {
   const normalizedLabel = String(label || '').trim();
+  const normalizedEmoji = String(emoji || '').trim();
   const optionKey = optionKeyFromLabel(normalizedLabel || roleId);
 
   if (!normalizedLabel) {
@@ -31,13 +38,18 @@ async function upsertPublicRole(guildId, label, roleId, sortOrder = 0) {
     throw new Error('Discord role is required.');
   }
 
-  return selectableRoleRepository.upsertRoleOption(
+  if (!normalizedEmoji) {
+    throw new Error('Emoji is required.');
+  }
+
+  return selectableRoleRepository.upsertRoleOptionWithEmoji(
     guildId,
     PUBLIC_GROUP_KEY,
     optionKey,
     normalizedLabel,
     roleId,
-    Number.isInteger(sortOrder) ? sortOrder : 0
+    Number.isInteger(sortOrder) ? sortOrder : 0,
+    normalizedEmoji
   );
 }
 
@@ -48,6 +60,7 @@ async function disablePublicRole(guildId, optionKey) {
 module.exports = {
   PUBLIC_GROUP_KEY,
   disablePublicRole,
+  emojiIdentifier,
   listPublicRoles,
   optionKeyFromLabel,
   upsertPublicRole

@@ -67,16 +67,6 @@ async function buildRolePanelComponents(guildId) {
     );
   }
 
-  if (data.publicRoles.length > 0) {
-    const shownRoles = data.publicRoles.slice(0, 25);
-    components.push(
-      new ActionRowBuilder().addComponents(
-        buildSelectMenu(customIds.PUBLIC_ROLE_SELECT, 'Choose your community roles', shownRoles)
-          .setMaxValues(shownRoles.length)
-      )
-    );
-  }
-
   if (data.communitySettings.coach_role_id) {
     components.push(
       new ActionRowBuilder().addComponents(
@@ -111,9 +101,10 @@ function buildRolePanelContent(data) {
   }
 
   if (data.publicRoles.length > 0) {
-    lines.push('- Pick your optional community roles from the menu below.');
-    if (data.publicRoles.length > 25) {
-      lines.push('- Only the first 25 configured community roles can be shown in one Discord menu.');
+    lines.push('', '**Reaction roles:**');
+    for (const role of data.publicRoles) {
+      if (!role.emoji) continue;
+      lines.push(`${role.emoji} - <@&${role.role_id}>`);
     }
   }
 
@@ -133,9 +124,43 @@ async function findExistingRolePanelMessage(channel, clientUserId) {
       message.content.includes('Discord Onboarding handles your platform') ||
       message.content.includes('**Role setup:**') ||
       message.content.includes('**Choose your roles:**')
-    ) &&
-    message.components.length > 0
+    )
   );
+}
+
+async function syncPublicRoleReactions(message, publicRoles) {
+  const desired = new Set(
+    publicRoles
+      .map(role => role.emoji)
+      .filter(Boolean)
+      .map(publicRoleService.emojiIdentifier)
+  );
+
+  for (const reaction of message.reactions.cache.values()) {
+    const identifier = reaction.emoji.id || reaction.emoji.name;
+    const hasBotReaction = await reaction.users.cache.has(message.client.user.id)
+      || await reaction.users.fetch().then(users => users.has(message.client.user.id)).catch(() => false);
+
+    if (hasBotReaction && !desired.has(identifier)) {
+      await reaction.users.remove(message.client.user.id).catch(error => {
+        logger.warn('Failed to remove stale role panel reaction', error);
+      });
+    }
+  }
+
+  for (const role of publicRoles) {
+    if (!role.emoji) continue;
+    const identifier = publicRoleService.emojiIdentifier(role.emoji);
+    const existingReaction = message.reactions.cache.find(reaction =>
+      (reaction.emoji.id || reaction.emoji.name) === identifier
+    );
+
+    if (!existingReaction) {
+      await message.react(role.emoji).catch(error => {
+        logger.warn(`Failed to add role panel reaction ${role.emoji}`, error);
+      });
+    }
+  }
 }
 
 async function setupRolePanel(client) {
@@ -168,19 +193,21 @@ async function setupRolePanel(client) {
   const content = `**${title}:**\n${buildRolePanelContent(data)}`;
   const components = await buildRolePanelComponents(channel.guild.id);
 
-  if (!existing && components.length === 0) {
+  if (!existing && components.length === 0 && data.publicRoles.length === 0) {
     logger.info('Skipped role panel because bot role onboarding is disabled and no bot role controls are configured');
     return { ok: false, reason: 'no_components', channelId: channel.id };
   }
 
   if (!existing) {
     const message = await channel.send({ content, components });
+    await syncPublicRoleReactions(message, data.publicRoles);
     rolePanelMessageId = message.id;
     logger.info('Created role panel message', message.id);
     return { ok: true, action: 'created', channelId: channel.id, messageId: message.id };
   }
 
   await existing.edit({ content, components });
+  await syncPublicRoleReactions(existing, data.publicRoles);
   rolePanelMessageId = existing.id;
   logger.info('Updated role panel message', existing.id);
   return { ok: true, action: 'updated', channelId: channel.id, messageId: existing.id };
@@ -190,5 +217,6 @@ module.exports = {
   buildRolePanelComponents,
   buildRolePanelContent,
   buildRolePanelData,
+  syncPublicRoleReactions,
   setupRolePanel
 };

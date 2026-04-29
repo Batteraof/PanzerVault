@@ -101,6 +101,7 @@ The bot uses:
 
 - `Guilds`
 - `GuildMessages`
+- `GuildMessageReactions`
 - `MessageContent`
 - `GuildMembers`
 - `GuildVoiceStates`
@@ -339,7 +340,7 @@ Examples:
 - `/config leveling info-channel`
 - `/dashboard`
 
-Use `/config roles channel` to choose the permanent roles channel, then add role options in the dashboard under **Public Role Menu**. Run `/config roles refresh` whenever you want the bot to immediately post or update the role picker without restarting the bot.
+Use `/config roles channel` to choose the permanent roles channel, then add role options in the dashboard under **Public Role Menu**. Each public role needs a label, Discord role, emoji, and optional sort order. Run `/config roles refresh` whenever you want the bot to immediately post or update the reaction role panel without restarting the bot.
 
 ## Deploy Update Flow
 

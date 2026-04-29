@@ -988,7 +988,7 @@ function renderPublicRoleSettings() {
   const metadata = getMetadata();
 
   html('#public-role-settings', `
-    <div class="panel-note">Configure optional roles shown in the permanent #roles panel. Members can choose multiple active roles from the dropdown.</div>
+    <div class="panel-note">Configure optional roles shown in the permanent #roles panel. Members react with the emoji to add the role and remove the reaction to remove it.</div>
     <form id="public-role-settings-form" class="form-stack">
       <section class="settings-section">
         <h3>Add or update role</h3>
@@ -1006,6 +1006,12 @@ function renderPublicRoleSettings() {
           </label>
 
           <label class="field">
+            <span>Emoji</span>
+            <input type="text" name="publicRoleEmoji" maxlength="80" placeholder="🎮" required>
+            <small>Use a standard emoji or paste a custom emoji mention.</small>
+          </label>
+
+          <label class="field">
             <span>Sort order</span>
             <input type="number" name="publicRoleSortOrder" step="1" value="0">
             <small>Lower numbers appear first.</small>
@@ -1019,7 +1025,7 @@ function renderPublicRoleSettings() {
           ${publicRoles.map(role => `
             <div class="reward-row">
               <div>
-                <strong>${escapeHtml(role.label)}</strong>
+                <strong>${escapeHtml(role.emoji || '')} ${escapeHtml(role.label)}</strong>
                 <span>${escapeHtml(labelFor(metadata.roles, role.roleId, `Role ${role.roleId}`))} - order ${escapeHtml(formatCount(role.sortOrder || 0))}</span>
               </div>
               <button class="button-secondary compact-button public-role-remove-button" type="button" data-option-key="${escapeHtml(role.optionKey)}">Remove</button>
@@ -1648,6 +1654,7 @@ async function handlePublicRoleSettingsSubmit(event) {
       body: JSON.stringify({
         label: form.elements.publicRoleLabel.value,
         roleId: form.elements.publicRoleId.value,
+        emoji: form.elements.publicRoleEmoji.value,
         sortOrder: form.elements.publicRoleSortOrder.value
       })
     });

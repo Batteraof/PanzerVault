@@ -337,7 +337,8 @@ function serializeSelectableRoles(rows) {
     optionKey: row.option_key,
     label: row.label,
     roleId: row.role_id,
-    sortOrder: row.sort_order
+    sortOrder: row.sort_order,
+    emoji: row.emoji || ''
   }));
 }
 
@@ -1194,6 +1195,7 @@ app.post('/api/settings/public-roles', async (req, res, next) => {
     const guildId = resolveGuildId(req);
     const label = String(req.body.label || '').trim();
     const roleId = asNullableId(req.body.roleId);
+    const emoji = String(req.body.emoji || '').trim();
     const sortOrder = Number.parseInt(req.body.sortOrder, 10);
 
     if (!label) {
@@ -1204,7 +1206,11 @@ app.post('/api/settings/public-roles', async (req, res, next) => {
       throw badRequest('Choose a Discord role.');
     }
 
-    const publicRole = await publicRoleService.upsertPublicRole(guildId, label, roleId, sortOrder);
+    if (!emoji) {
+      throw badRequest('Choose an emoji for this reaction role.');
+    }
+
+    const publicRole = await publicRoleService.upsertPublicRole(guildId, label, roleId, emoji, sortOrder);
     const publicRoles = await publicRoleService.listPublicRoles(guildId);
 
     res.status(201).json({
