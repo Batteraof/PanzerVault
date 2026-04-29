@@ -86,38 +86,43 @@ async function buildRolePanelComponents(guildId) {
 function buildRolePanelContent(data) {
   const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
   const lines = [
-    'Use this channel whenever you want to update the roles that shape your server experience.'
+    '**Role options**',
+    'Keep your profile useful for matchmaking, events, training, and community pings.',
+    '',
+    '**What you can do here**'
   ];
 
   if (botOnboardingEnabled && data.skillRoles.length > 0) {
-    lines.push('- Change your skill role here if your experience level changes.');
+    lines.push('- Change your skill level when your experience changes.');
   } else {
     lines.push('- Change platform, region, skill, and channel choices in Discord **Channels & Roles**.');
   }
 
   if (botOnboardingEnabled && data.regionRoles.length > 0) {
-    lines.push('- Update your region here if your timezone or preferred region changes.');
+    lines.push('- Update your region if your timezone or preferred play window changes.');
   }
 
   if (data.communitySettings.coach_role_id) {
-    lines.push(`- Medium and Expert players can toggle <@&${data.communitySettings.coach_role_id}> if they want beginners to know they can ask for help.`);
+    lines.push(`- Medium and Expert players can toggle <@&${data.communitySettings.coach_role_id}> to show beginners they can ask you for help.`);
   }
 
+  lines.push('- Pick optional ping/community roles with the reactions below.');
+  lines.push('- Choose or change your team in the separate team message below.');
+
   if (data.publicRoles.length > 0) {
-    lines.push('- React below to get optional roles. Remove your reaction to remove the role.');
-    lines.push('- Team selection is in the separate team message below.');
-    lines.push('', '**Optional reaction roles:**');
+    lines.push('', '**Reaction roles**');
+    lines.push('React to add a role. Remove your reaction to remove it.');
     for (const role of data.publicRoles) {
       if (!role.emoji) continue;
-      lines.push(`${role.emoji} - <@&${role.role_id}>`);
+      lines.push(`${role.emoji}  <@&${role.role_id}>`);
     }
   } else {
-    lines.push('- Optional reaction roles will appear here when staff add them in the dashboard.');
-    lines.push('- Team selection is in the separate team message below.');
+    lines.push('', '**Reaction roles**');
+    lines.push('Staff can add optional reaction roles from the dashboard.');
   }
 
   if (!botOnboardingEnabled) {
-    lines.push('- XP rewards, tickets, media flows, events, and admin tools are still handled by PanzerVault Bot.');
+    lines.push('', 'XP rewards, tickets, media flows, events, and admin tools are still handled by PanzerVault Bot.');
   }
 
   return lines.join('\n');
@@ -209,8 +214,7 @@ async function setupRolePanel(client) {
 
   const data = await buildRolePanelData(channel.guild.id);
   const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
-  const title = 'Role options';
-  const content = `**${title}:**\n${buildRolePanelContent(data)}`;
+  const content = buildRolePanelContent(data);
   const components = await buildRolePanelComponents(channel.guild.id);
 
   if (!existing) {
@@ -257,8 +261,9 @@ async function setupTeamPanelInChannel(channel, clientUserId) {
 
   const picker = await buildTeamRolePicker(channel.guild.id);
   const content = [
-    '**Choose your team:**',
-    'Use this menu if you want a team role. You can change it later, or use `/team clear` to remove your current team role.',
+    '**Choose your team**',
+    'Pick the group you want shown on your profile. You can change teams any time from this menu.',
+    'Use `/team clear` if you want to remove your current team role.',
     '',
     picker.content
   ].join('\n');
