@@ -340,7 +340,12 @@ Examples:
 - `/config leveling info-channel`
 - `/dashboard`
 
-Use `/config roles channel` to choose the permanent roles channel, then add role options in the dashboard under **Public Role Menu**. Each public role needs a label, Discord role, emoji, and optional sort order. Run `/config roles refresh` whenever you want the bot to immediately post or update the reaction role panel without restarting the bot.
+Use `/config roles channel` to choose the permanent roles channel, then add role options in the dashboard under **Public Role Menu**. Each public role needs a label, Discord role, emoji, and optional sort order. Run `/config roles refresh` whenever you want the bot to immediately post or update the role channel panels without restarting the bot.
+
+The roles channel gets two permanent bot messages:
+
+- **Role options** explains how members can update optional roles, change supported role choices, and opt into the helper role.
+- **Choose your team** is a separate team picker for dashboard-managed team roles.
 
 ## Deploy Update Flow
 

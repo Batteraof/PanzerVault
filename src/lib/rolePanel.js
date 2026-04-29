@@ -6,6 +6,7 @@ const {
 } = require('discord.js');
 const config = require('../config');
 const customIds = require('./customIds');
+const { buildTeamRolePicker } = require('./teamRolePicker');
 const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
@@ -13,6 +14,7 @@ const publicRoleService = require('../modules/config/services/publicRoleService'
 const logger = require('../logger');
 
 let rolePanelMessageId = config.rolePanelMessageId;
+let teamPanelMessageId = null;
 
 function buildSelectMenu(customId, placeholder, options) {
   return new StringSelectMenuBuilder()
@@ -83,33 +85,39 @@ async function buildRolePanelComponents(guildId) {
 
 function buildRolePanelContent(data) {
   const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
-  const lines = botOnboardingEnabled
-    ? ['Pick the roles that fit you best.']
-    : ['Discord Onboarding handles your platform, region, skill, and channel roles.'];
+  const lines = [
+    'Use this channel whenever you want to update the roles that shape your server experience.'
+  ];
 
   if (botOnboardingEnabled && data.skillRoles.length > 0) {
-    lines.push('- Pick your skill level: Beginner, Medium, or Expert.');
+    lines.push('- Change your skill role here if your experience level changes.');
+  } else {
+    lines.push('- Change platform, region, skill, and channel choices in Discord **Channels & Roles**.');
   }
 
   if (botOnboardingEnabled && data.regionRoles.length > 0) {
-    lines.push('- Pick the region that fits you best.');
+    lines.push('- Update your region here if your timezone or preferred region changes.');
   }
 
   if (data.communitySettings.coach_role_id) {
-    lines.push('- Medium and Expert players can opt into the helper role so beginners know who to ask for help.');
-    lines.push(`- Beginners can watch for members with <@&${data.communitySettings.coach_role_id}>.`);
+    lines.push(`- Medium and Expert players can toggle <@&${data.communitySettings.coach_role_id}> if they want beginners to know they can ask for help.`);
   }
 
   if (data.publicRoles.length > 0) {
-    lines.push('', '**Reaction roles:**');
+    lines.push('- React below to get optional roles. Remove your reaction to remove the role.');
+    lines.push('- Team selection is in the separate team message below.');
+    lines.push('', '**Optional reaction roles:**');
     for (const role of data.publicRoles) {
       if (!role.emoji) continue;
       lines.push(`${role.emoji} - <@&${role.role_id}>`);
     }
+  } else {
+    lines.push('- Optional reaction roles will appear here when staff add them in the dashboard.');
+    lines.push('- Team selection is in the separate team message below.');
   }
 
   if (!botOnboardingEnabled) {
-    lines.push('- The bot still manages XP rewards, tickets, media flows, events, and admin tools.');
+    lines.push('- XP rewards, tickets, media flows, events, and admin tools are still handled by PanzerVault Bot.');
   }
 
   return lines.join('\n');
@@ -123,7 +131,19 @@ async function findExistingRolePanelMessage(channel, clientUserId) {
       message.content.includes('Select your onboarding roles below') ||
       message.content.includes('Discord Onboarding handles your platform') ||
       message.content.includes('**Role setup:**') ||
-      message.content.includes('**Choose your roles:**')
+      message.content.includes('**Choose your roles:**') ||
+      message.content.includes('**Role options:**')
+    )
+  );
+}
+
+async function findExistingTeamPanelMessage(channel, clientUserId) {
+  const recentMessages = await channel.messages.fetch({ limit: 25 });
+  return recentMessages.find(message =>
+    message.author.id === clientUserId &&
+    (
+      message.content.includes('**Choose your team:**') ||
+      message.content.includes('**Team selection:**')
     )
   );
 }
@@ -189,34 +209,84 @@ async function setupRolePanel(client) {
 
   const data = await buildRolePanelData(channel.guild.id);
   const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
-  const title = data.publicRoles.length > 0 ? 'Choose your roles' : (botOnboardingEnabled ? 'Select your onboarding roles below' : 'Role setup');
+  const title = 'Role options';
   const content = `**${title}:**\n${buildRolePanelContent(data)}`;
   const components = await buildRolePanelComponents(channel.guild.id);
-
-  if (!existing && components.length === 0 && data.publicRoles.length === 0) {
-    logger.info('Skipped role panel because bot role onboarding is disabled and no bot role controls are configured');
-    return { ok: false, reason: 'no_components', channelId: channel.id };
-  }
 
   if (!existing) {
     const message = await channel.send({ content, components });
     await syncPublicRoleReactions(message, data.publicRoles);
     rolePanelMessageId = message.id;
     logger.info('Created role panel message', message.id);
-    return { ok: true, action: 'created', channelId: channel.id, messageId: message.id };
+    const teamResult = await setupTeamPanelInChannel(channel, client.user.id);
+    return {
+      ok: true,
+      action: 'created',
+      channelId: channel.id,
+      messageId: message.id,
+      teamAction: teamResult.action,
+      teamMessageId: teamResult.messageId
+    };
   }
 
   await existing.edit({ content, components });
   await syncPublicRoleReactions(existing, data.publicRoles);
   rolePanelMessageId = existing.id;
   logger.info('Updated role panel message', existing.id);
-  return { ok: true, action: 'updated', channelId: channel.id, messageId: existing.id };
+  const teamResult = await setupTeamPanelInChannel(channel, client.user.id);
+  return {
+    ok: true,
+    action: 'updated',
+    channelId: channel.id,
+    messageId: existing.id,
+    teamAction: teamResult.action,
+    teamMessageId: teamResult.messageId
+  };
+}
+
+async function setupTeamPanelInChannel(channel, clientUserId) {
+  let existing = null;
+
+  if (teamPanelMessageId) {
+    existing = await channel.messages.fetch(teamPanelMessageId).catch(() => null);
+  }
+
+  if (!existing) {
+    existing = await findExistingTeamPanelMessage(channel, clientUserId);
+  }
+
+  const picker = await buildTeamRolePicker(channel.guild.id);
+  const content = [
+    '**Choose your team:**',
+    'Use this menu if you want a team role. You can change it later, or use `/team clear` to remove your current team role.',
+    '',
+    picker.content
+  ].join('\n');
+
+  if (!existing) {
+    const message = await channel.send({
+      content,
+      components: picker.components
+    });
+    teamPanelMessageId = message.id;
+    logger.info('Created team panel message', message.id);
+    return { ok: true, action: 'created', messageId: message.id };
+  }
+
+  await existing.edit({
+    content,
+    components: picker.components
+  });
+  teamPanelMessageId = existing.id;
+  logger.info('Updated team panel message', existing.id);
+  return { ok: true, action: 'updated', messageId: existing.id };
 }
 
 module.exports = {
   buildRolePanelComponents,
   buildRolePanelContent,
   buildRolePanelData,
+  setupTeamPanelInChannel,
   syncPublicRoleReactions,
   setupRolePanel
 };
