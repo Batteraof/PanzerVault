@@ -423,34 +423,6 @@ async function handleTickets(interaction) {
   return 'Unknown ticket config action.';
 }
 
-async function handleRules(interaction) {
-  const subcommand = interaction.options.getSubcommand();
-  await botSettingsService.ensureGuildSettings(interaction.guild.id);
-
-  if (subcommand === 'channel') {
-    const channel = interaction.options.getChannel('channel', true);
-    await botSettingsService.updateRulesChannel(interaction.guild.id, channel.id);
-    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
-    return `Rules verification will now use ${channel}.`;
-  }
-
-  if (subcommand === 'verified-role') {
-    const role = interaction.options.getRole('role', true);
-    await botSettingsService.updateRulesVerifiedRole(interaction.guild.id, role.id);
-    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
-    return `Members who accept the rules will now receive ${role}.`;
-  }
-
-  if (subcommand === 'enabled') {
-    const enabled = interaction.options.getBoolean('enabled', true);
-    await botSettingsService.updateRulesEnabled(interaction.guild.id, enabled);
-    await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
-    return `Rules verification is now ${enabled ? 'enabled' : 'disabled'}.`;
-  }
-
-  return 'Unknown rules config action.';
-}
-
 async function handleRoles(interaction) {
   const subcommand = interaction.options.getSubcommand();
   await botSettingsService.ensureGuildSettings(interaction.guild.id);
@@ -550,7 +522,6 @@ async function execute(interaction) {
   if (group === 'rewards') return handleRewards(interaction);
   if (group === 'tickets') return handleTickets(interaction);
   if (group === 'community') return handleCommunity(interaction);
-  if (group === 'rules') return handleRules(interaction);
   if (group === 'roles') return handleRoles(interaction);
 
   return 'Unknown config group.';

@@ -1,13 +1,8 @@
 const {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
   PermissionFlagsBits
 } = require('discord.js');
 const config = require('../../../config');
-const customIds = require('../../../lib/customIds');
-const botSettingsService = require('./botSettingsService');
 const communitySettingsService = require('./communitySettingsService');
 const guildSettingsRepository = require('../../../db/repositories/guildSettingsRepository');
 const gallerySettingsService = require('../../gallery/services/gallerySettingsService');
@@ -15,7 +10,6 @@ const { CATEGORY_LABELS, CATEGORIES } = require('../../gallery/constants/gallery
 const logger = require('../../../logger');
 
 const PANEL_MARKERS = {
-  rules: 'PanzerVault Rules Panel',
   showcase: 'PanzerVault Showcase Guide',
   meme: 'PanzerVault Meme Guide',
   media: 'PanzerVault Media Guide',
@@ -37,72 +31,6 @@ function supportLine() {
   }
 
   return 'Need help or found a problem? Contact the staff team.';
-}
-
-function buildRulesPanel(guild) {
-  const embed = new EmbedBuilder()
-    .setColor(0xED4245)
-    .setTitle(`${guild.name} Rules`)
-    .setDescription('Read the rules below, then click **I Agree** to unlock the rest of the server.')
-    .addFields(
-      {
-        name: '1. Be Respectful',
-        value: 'Treat all members with respect. Harassment, discrimination, or toxic behavior is not tolerated.',
-        inline: false
-      },
-      {
-        name: '2. Keep Discussions Civil',
-        value: 'Debate is fine. Drama or hostility are not allowed.',
-        inline: false
-      },
-      {
-        name: '3. No NSFW Content',
-        value: 'This includes images, videos, links, and inappropriate conversations.',
-        inline: false
-      },
-      {
-        name: '4. No Advertising or Self-Promotion Spam',
-        value: 'Sharing your own content is allowed when it is relevant and not repeatedly reposted. Excessive self-promotion will be removed.',
-        inline: false
-      },
-      {
-        name: '5. Absolutely No Active Recruiting',
-        value: 'No recruiting for other clans, units, Discord servers, or gaming groups in channels or DMs. Recruiting here results in an immediate ban.',
-        inline: false
-      },
-      {
-        name: '6. Respect Staff Decisions',
-        value: 'Moderators and admins have the final say. If you disagree, discuss it privately and respectfully.',
-        inline: false
-      },
-      {
-        name: '7. Have Fun and Play Fair',
-        value: 'We are here to enjoy the game and the community.',
-        inline: false
-      },
-      {
-        name: 'After You Agree',
-        value: 'You will unlock the full server. Discord Onboarding handles the basic role choices, and Medium or Expert players can opt into the helper role so beginners know who to ask for help.',
-        inline: false
-      },
-      {
-        name: 'DM Recruiting or Rule Breaking',
-        value: 'If someone recruits you in DMs or breaks these rules, send the details to staff.',
-        inline: false
-      }
-    )
-    .setFooter({ text: PANEL_MARKERS.rules });
-
-  const components = [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(customIds.AGREE_RULES)
-        .setLabel('I Agree to the Rules')
-        .setStyle(ButtonStyle.Success)
-    )
-  ];
-
-  return { embeds: [embed], components };
 }
 
 function buildMediaGuidePanel() {
@@ -335,19 +263,11 @@ async function refreshGuildPanels(client, guildId) {
   const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
   if (!guild) return;
 
-  const [botSettings, gallerySettings, levelingSettings, communitySettings] = await Promise.all([
-    botSettingsService.ensureGuildSettings(guild.id),
+  const [gallerySettings, levelingSettings, communitySettings] = await Promise.all([
     gallerySettingsService.ensureGuildSettings(guild.id),
     guildSettingsRepository.ensureSettings(guild.id),
     communitySettingsService.ensureGuildSettings(guild.id)
   ]);
-
-  if (botSettings.rules_enabled && botSettings.rules_channel_id && botSettings.rules_verified_role_id) {
-    const rulesChannel = await fetchTextChannel(client, botSettings.rules_channel_id);
-    if (rulesChannel) {
-      await upsertPanel(rulesChannel, PANEL_MARKERS.rules, buildRulesPanel(guild), client.user.id);
-    }
-  }
 
   if (communitySettings.media_channel_id) {
     const mediaChannel = await fetchTextChannel(client, communitySettings.media_channel_id);

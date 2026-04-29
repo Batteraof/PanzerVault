@@ -532,13 +532,12 @@ function renderBotSettings() {
   const metadata = getMetadata();
 
   html('#bot-settings', `
-    <div class="panel-note">Control the first-touch server flow: welcome posts, rules verification, and the role granted after rules acceptance.</div>
+    <div class="panel-note">Control welcome routing and the permanent roles channel. Discord Onboarding handles server rules and first-join verification.</div>
     <form id="bot-settings-form" class="form-stack">
       <section class="settings-section">
-        <h3>Welcome and rules</h3>
+        <h3>Welcome</h3>
         <div class="toggle-grid">
           ${renderToggleControl('welcomeEnabled', 'Welcome messages', 'Send the configured welcome note when members join.', bot.welcome_enabled !== false)}
-          ${renderToggleControl('rulesEnabled', 'Rules verification', 'Require members to accept the rules before receiving the verified role.', bot.rules_enabled === true)}
         </div>
       </section>
 
@@ -552,21 +551,9 @@ function renderBotSettings() {
           </label>
 
           <label class="field">
-            <span>Rules channel</span>
-            <select name="rulesChannelId">${selectOptions(metadata.channels, bot.rules_channel_id, 'Choose a rules channel')}</select>
-            <small>The rules panel and verification button live here.</small>
-          </label>
-
-          <label class="field">
             <span>Role panel channel</span>
             <select name="rolePanelChannelId">${selectOptions(metadata.channels, bot.role_panel_channel_id, 'Choose the roles channel')}</select>
             <small>The always-on member role picker is posted and refreshed here.</small>
-          </label>
-
-          <label class="field">
-            <span>Verified role</span>
-            <select name="rulesVerifiedRoleId">${selectOptions(metadata.roles, bot.rules_verified_role_id, 'Choose the verified member role')}</select>
-            <small>Members receive this after accepting the rules.</small>
           </label>
         </div>
       </section>
@@ -1214,11 +1201,8 @@ async function handleBotSettingsSubmit(event) {
       method: 'PUT',
       body: JSON.stringify({
         welcomeEnabled: form.elements.welcomeEnabled.checked,
-        rulesEnabled: form.elements.rulesEnabled.checked,
         welcomeChannelId: form.elements.welcomeChannelId.value,
-        rolePanelChannelId: form.elements.rolePanelChannelId.value,
-        rulesChannelId: form.elements.rulesChannelId.value,
-        rulesVerifiedRoleId: form.elements.rulesVerifiedRoleId.value
+        rolePanelChannelId: form.elements.rolePanelChannelId.value
       })
     });
 

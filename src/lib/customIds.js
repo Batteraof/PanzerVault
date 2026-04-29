@@ -7,7 +7,6 @@ module.exports = {
   TEAM_MENU: 'team_menu',
   ROLES_MENU: 'roles_menu',
   ROLE_SELECT: 'role_select',
-  AGREE_RULES: 'agree_rules',
   SKILL_SELECT: 'skill_select',
   REGION_SELECT: 'region_select',
   TEAM_SELECT: 'team_select',

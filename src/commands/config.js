@@ -482,34 +482,6 @@ module.exports = {
     )
     .addSubcommandGroup(group =>
       group
-        .setName('rules')
-        .setDescription('Configure the rules gate and verified role.')
-        .addSubcommand(subcommand =>
-          addChannelOption(
-            subcommand
-              .setName('channel')
-              .setDescription('Set the rules channel used for verification.'),
-            'Channel where the rules panel should live.'
-          )
-        )
-        .addSubcommand(subcommand =>
-          addRoleOption(
-            subcommand
-              .setName('verified-role')
-              .setDescription('Set the role granted after accepting the rules.'),
-            'Role granted after rules acceptance.'
-          )
-        )
-        .addSubcommand(subcommand =>
-          addEnabledOption(
-            subcommand
-              .setName('enabled')
-              .setDescription('Enable or disable rules verification.')
-            )
-        )
-    )
-    .addSubcommandGroup(group =>
-      group
         .setName('roles')
         .setDescription('Configure and refresh the permanent role selection panel.')
         .addSubcommand(subcommand =>

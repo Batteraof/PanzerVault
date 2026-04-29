@@ -14,7 +14,6 @@ const {
   buildRolePanelContent,
   buildRolePanelData
 } = require('../../lib/rolePanel');
-const botSettingsService = require('../../modules/config/services/botSettingsService');
 const communitySettingsService = require('../../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../../modules/config/services/onboardingRoleService');
 const publicRoleService = require('../../modules/config/services/publicRoleService');
@@ -34,7 +33,6 @@ function isRoleButton(customId) {
     customIds.SITE_INFO,
     customIds.TEAM_MENU,
     customIds.ROLES_MENU,
-    customIds.AGREE_RULES,
     customIds.COACH_TOGGLE,
     customIds.PUBLIC_ROLE_CLEAR
   ].includes(customId);
@@ -352,44 +350,6 @@ async function handleRoleButton(interaction) {
 
   if (interaction.customId === customIds.TEAM_MENU) {
     return respondEphemeral(interaction, await buildTeamRolePicker(interaction.guild.id));
-  }
-
-  if (interaction.customId === customIds.AGREE_RULES) {
-    const settings = await botSettingsService.ensureGuildSettings(interaction.guild.id);
-    const member = interaction.member;
-    const botMember = interaction.guild.members.me;
-
-    if (!settings.rules_enabled || !settings.rules_verified_role_id) {
-      return respondEphemeral(interaction, 'Rules verification is not configured yet. Please contact staff.');
-    }
-
-    if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-      return respondEphemeral(interaction, 'I do not have permission to grant the verified role.');
-    }
-
-    const verifiedRole = interaction.guild.roles.cache.get(settings.rules_verified_role_id);
-    if (!verifiedRole) {
-      return respondEphemeral(interaction, 'The verified role is missing. Please contact staff.');
-    }
-
-    if (botMember.roles.highest.comparePositionTo(verifiedRole) <= 0) {
-      return respondEphemeral(interaction, 'My role is too low to grant the verified role.');
-    }
-
-    if (!member.roles.cache.has(verifiedRole.id)) {
-      await member.roles.add(verifiedRole);
-    }
-
-    const data = await buildRolePanelData(interaction.guild.id);
-    const components = await buildRolePanelComponents(interaction.guild.id);
-    const botOnboardingEnabled = data.communitySettings.onboarding_enabled !== false;
-    const followUp = botOnboardingEnabled
-      ? `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Select your onboarding roles below:**\n${buildRolePanelContent(data)}`
-      : `Thanks for agreeing to the rules. You now have access to the full server.\n\n**Role setup:**\n${buildRolePanelContent(data)}`;
-    return respondEphemeral(interaction, {
-      content: followUp,
-      components
-    });
   }
 
   if (interaction.customId === customIds.COACH_TOGGLE) {

@@ -3,7 +3,6 @@
 CommonJS Discord.js v14 bot for Tanks Let Loose with:
 
 - welcome flow with optional introductions
-- rules verification
 - Discord Onboarding handoff with optional bot fallback roles
 - PostgreSQL-backed leveling
 - guided gallery submissions
@@ -135,6 +134,7 @@ Staff-only slash commands use default member permissions so normal members shoul
 Recommended setup:
 
 - Discord Onboarding assigns platform, skill, region, interest, and channel roles
+- Discord Onboarding handles rules acceptance and first-join verification
 - the bot keeps XP reward roles, tickets, media/gallery/video flows, events, spotlight, and dashboard/admin automation
 - optional helper role stays in the bot so Medium and Expert members can opt into being helper contacts
 - set `ONBOARDING_ENABLED=false` when Discord Onboarding handles the basic roles
@@ -144,19 +144,9 @@ Recommended setup:
 
 Members can only post one introduction through **Tell us about yourself**. Staff can still moderate or manually clean up the posted message if needed.
 
-When bot rules verification is enabled:
-
-- the bot keeps a pinned rules panel in the rules channel
-- members click **I Agree** to receive the verified role
-- if `ONBOARDING_ENABLED=true`, they can immediately choose fallback bot roles:
-  - skill: `Beginner / Medium / Expert`
-  - region: `EU / UK / NA / LATAM / AFRICA / SA / EA / SEA / OCE`
-- Medium and Expert members can opt into a helper role when it is configured
-- beginners are told who can help
-
 The welcome message no longer asks members to accept rules or pick roles when Discord Onboarding handles that first-run experience. Instead, it keeps a site button and offers an optional **Tell us about yourself** popup. Introductions are posted in the general channel and get a wave reaction so members can welcome the newcomer.
 
-Important: Discord channel permissions still need to be set so only the verified role can see the full server.
+Important: Discord channel permissions still need to be set so only your Discord Onboarding/verified member role can see the full server.
 
 ## Leveling
 
@@ -319,14 +309,12 @@ Main config groups:
 - `/config community ...`
 - `/config rewards ...`
 - `/config tickets ...`
-- `/config rules ...`
+- `/config roles ...`
 - `/dashboard`
 
 Examples:
 
 - `/config check`
-- `/config rules channel`
-- `/config rules verified-role`
 - `/config roles channel`
 - `/config roles refresh`
 - `/config onboarding skill-role`

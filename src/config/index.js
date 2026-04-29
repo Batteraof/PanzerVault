@@ -100,15 +100,13 @@ const config = {
   channels: {
     rolePanel: process.env.ROLE_PANEL_CHANNEL_ID || '1495760275448528928',
     welcome: process.env.WELCOME_CHANNEL_ID || process.env.ROLE_PANEL_CHANNEL_ID || '1495760275448528928',
-    rules: process.env.RULES_CHANNEL_ID || '',
     siteUrl: process.env.SITE_URL || 'https://tanksletloose.carrd.co/',
     generalChannelId: process.env.GENERAL_CHANNEL_ID || '',
     generalUrl:
       process.env.GENERAL_CHANNEL_URL ||
       'https://discord.com/channels/1495760274827903086/1495924550662098944',
     gameChannelId: process.env.GAME_CHANNEL_ID || '1447381195003400340',
-    readyRoleId: process.env.READY_ROLE_ID || '1496201325317197895',
-    verifiedRoleId: process.env.RULES_VERIFIED_ROLE_ID || ''
+    readyRoleId: process.env.READY_ROLE_ID || '1496201325317197895'
   },
   botInfo: {
     ownerName: process.env.BOT_OWNER_NAME || '',
@@ -153,9 +151,6 @@ const config = {
     voiceTrackingIntervalMs: intFromEnv(process.env.VOICE_TRACKING_INTERVAL_MS, laptopProfile ? 120_000 : 60_000),
     afkVoiceChannelIds: csvFromEnv(process.env.AFK_VOICE_CHANNEL_IDS),
     infoChannelId: process.env.LEVELING_INFO_CHANNEL_ID || ''
-  },
-  onboarding: {
-    rulesEnabled: boolFromEnv(process.env.RULES_ENABLED, false)
   }
 };
 

@@ -168,17 +168,6 @@ function buildCoreRoutingSection(botSettings, communitySettings, metadata) {
   return buildSection('core-routing', 'Core Routing', items);
 }
 
-function buildRulesSection(botSettings, metadata) {
-  if (botSettings?.rules_enabled === false) {
-    return offSection('rules', 'Rules Verification', 'Rules gating is turned off for this guild.');
-  }
-
-  return buildSection('rules', 'Rules Verification', [
-    channelItem(metadata, botSettings?.rules_channel_id, 'Rules channel'),
-    roleItem(metadata, botSettings?.rules_verified_role_id, 'Verified role')
-  ]);
-}
-
 function buildOnboardingSection(communitySettings, skillRoles, regionRoles, metadata) {
   if (communitySettings?.onboarding_enabled === false) {
     return buildSection('onboarding', 'Discord Onboarding Handoff', [
@@ -402,7 +391,6 @@ function buildReadinessReport(context) {
 
   const sections = [
     buildCoreRoutingSection(context.botSettings || {}, context.communitySettings || {}, metadata),
-    buildRulesSection(context.botSettings || {}, metadata),
     buildOnboardingSection(context.communitySettings || {}, skillRoles, regionRoles, metadata),
     buildLevelingSection(context.levelingSettings || {}, context.communitySettings || {}, metadata),
     buildMediaSection(context.communitySettings || {}, metadata),

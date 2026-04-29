@@ -367,8 +367,7 @@ function parseRequiredLevel(value) {
 function buildBotUpdates(body = {}) {
   const updates = {};
   const flagKeys = {
-    welcomeEnabled: 'welcome_enabled',
-    rulesEnabled: 'rules_enabled'
+    welcomeEnabled: 'welcome_enabled'
   };
 
   for (const [inputKey, dbKey] of Object.entries(flagKeys)) {
@@ -380,9 +379,7 @@ function buildBotUpdates(body = {}) {
 
   const idKeys = {
     welcomeChannelId: 'welcome_channel_id',
-    rolePanelChannelId: 'role_panel_channel_id',
-    rulesChannelId: 'rules_channel_id',
-    rulesVerifiedRoleId: 'rules_verified_role_id'
+    rolePanelChannelId: 'role_panel_channel_id'
   };
 
   for (const [inputKey, dbKey] of Object.entries(idKeys)) {
