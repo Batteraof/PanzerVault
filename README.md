@@ -326,6 +326,8 @@ Examples:
 - `/config check`
 - `/config rules channel`
 - `/config rules verified-role`
+- `/config roles channel`
+- `/config roles refresh`
 - `/config onboarding skill-role`
 - `/config onboarding region-role`
 - `/config onboarding coach-role` for the helper role
@@ -336,6 +338,8 @@ Examples:
 - `/config community moderation-log-channel`
 - `/config leveling info-channel`
 - `/dashboard`
+
+Use `/config roles channel` to choose the permanent roles channel, then add role options in the dashboard under **Public Role Menu**. Run `/config roles refresh` whenever you want the bot to immediately post or update the role picker without restarting the bot.
 
 ## Deploy Update Flow
 

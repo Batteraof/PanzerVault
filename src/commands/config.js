@@ -505,7 +505,25 @@ module.exports = {
             subcommand
               .setName('enabled')
               .setDescription('Enable or disable rules verification.')
+            )
+        )
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('roles')
+        .setDescription('Configure and refresh the permanent role selection panel.')
+        .addSubcommand(subcommand =>
+          addChannelOption(
+            subcommand
+              .setName('channel')
+              .setDescription('Set the channel used for the permanent role panel.'),
+            'Channel where the role selection panel should live.'
           )
+        )
+        .addSubcommand(subcommand =>
+          subcommand
+            .setName('refresh')
+            .setDescription('Post or update the permanent role selection panel now.')
         )
     ),
 

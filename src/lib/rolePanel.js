@@ -145,7 +145,7 @@ async function setupRolePanel(client) {
   const channel = channelId ? await client.channels.fetch(channelId).catch(() => null) : null;
   if (!channel || !channel.isTextBased()) {
     logger.warn('Role panel channel is missing or is not text based', channelId);
-    return;
+    return { ok: false, reason: 'missing_channel', channelId };
   }
 
   let existing = null;
@@ -170,19 +170,20 @@ async function setupRolePanel(client) {
 
   if (!existing && components.length === 0) {
     logger.info('Skipped role panel because bot role onboarding is disabled and no bot role controls are configured');
-    return;
+    return { ok: false, reason: 'no_components', channelId: channel.id };
   }
 
   if (!existing) {
     const message = await channel.send({ content, components });
     rolePanelMessageId = message.id;
     logger.info('Created role panel message', message.id);
-    return;
+    return { ok: true, action: 'created', channelId: channel.id, messageId: message.id };
   }
 
   await existing.edit({ content, components });
   rolePanelMessageId = existing.id;
   logger.info('Updated role panel message', existing.id);
+  return { ok: true, action: 'updated', channelId: channel.id, messageId: existing.id };
 }
 
 module.exports = {

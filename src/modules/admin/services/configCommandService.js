@@ -451,6 +451,43 @@ async function handleRules(interaction) {
   return 'Unknown rules config action.';
 }
 
+async function handleRoles(interaction) {
+  const subcommand = interaction.options.getSubcommand();
+  await botSettingsService.ensureGuildSettings(interaction.guild.id);
+
+  if (subcommand === 'channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    await botSettingsService.updateRolePanelChannel(interaction.guild.id, channel.id);
+    const result = await setupRolePanel(interaction.client);
+
+    if (!result?.ok && result?.reason === 'no_components') {
+      return `Role panel channel is now ${channel}. Add at least one Public Role Menu option in the dashboard, then run /config roles refresh.`;
+    }
+
+    if (!result?.ok) {
+      return `Role panel channel is now ${channel}, but I could not post the panel yet. Check that I can view and send messages there.`;
+    }
+
+    return `Role panel ${result.action} in ${channel}.`;
+  }
+
+  if (subcommand === 'refresh') {
+    const result = await setupRolePanel(interaction.client);
+
+    if (!result?.ok && result?.reason === 'no_components') {
+      return 'No role panel was posted because no active role controls are configured. Add Public Role Menu options in the dashboard first.';
+    }
+
+    if (!result?.ok) {
+      return 'I could not find or access the role panel channel. Set it with /config roles channel.';
+    }
+
+    return `Role panel ${result.action} in <#${result.channelId}>.`;
+  }
+
+  return 'Unknown roles config action.';
+}
+
 function statusIcon(status) {
   if (status === 'ok') return '[OK]';
   if (status === 'warn') return '[WARN]';
@@ -514,6 +551,7 @@ async function execute(interaction) {
   if (group === 'tickets') return handleTickets(interaction);
   if (group === 'community') return handleCommunity(interaction);
   if (group === 'rules') return handleRules(interaction);
+  if (group === 'roles') return handleRoles(interaction);
 
   return 'Unknown config group.';
 }
