@@ -1,18 +1,40 @@
 const { PermissionsBitField } = require('discord.js');
 const onboardingRoleService = require('./onboardingRoleService');
 
-function isHelperEligibleSkill(skillOptionKey) {
-  return ['medium', 'expert'].includes(skillOptionKey);
+const HELPER_ELIGIBLE_SKILL_KEYS = new Set(['medium', 'expert']);
+const HELPER_ELIGIBLE_SKILL_LABELS = new Set(['medium', 'expert', 'normal', 'good']);
+
+function normalizeSkillText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isHelperEligibleSkill(skillOptionKey, label = null, roleName = null) {
+  return HELPER_ELIGIBLE_SKILL_KEYS.has(normalizeSkillText(skillOptionKey)) ||
+    HELPER_ELIGIBLE_SKILL_LABELS.has(normalizeSkillText(label)) ||
+    HELPER_ELIGIBLE_SKILL_LABELS.has(normalizeSkillText(roleName));
 }
 
 async function getMemberSkillRole(member) {
   const skillRoles = await onboardingRoleService.listRolesByGroup(member.guild.id, 'skill');
-  return skillRoles.find(role => member.roles.cache.has(role.role_id)) || null;
+  const selected = skillRoles.find(role => member.roles.cache.has(role.role_id));
+  if (!selected) return null;
+
+  return {
+    ...selected,
+    guildRole: member.guild.roles.cache.get(selected.role_id) || null
+  };
 }
 
 async function memberHasHelperEligibleSkill(member) {
   const selectedSkill = await getMemberSkillRole(member);
-  return Boolean(selectedSkill && isHelperEligibleSkill(selectedSkill.option_key));
+  if (
+    selectedSkill &&
+    isHelperEligibleSkill(selectedSkill.option_key, selectedSkill.label, selectedSkill.guildRole?.name)
+  ) {
+    return true;
+  }
+
+  return member.roles.cache.some(role => isHelperEligibleSkill(null, null, role.name));
 }
 
 async function setMemberSkillRole(member, skillOptionKey) {

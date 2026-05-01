@@ -21,12 +21,9 @@ const onboardingRoleService = require('../../modules/config/services/onboardingR
 const publicRoleService = require('../../modules/config/services/publicRoleService');
 const roleCategoryService = require('../../modules/config/services/roleCategoryService');
 const memberRoleCategoryService = require('../../modules/config/services/memberRoleCategoryService');
+const memberSkillRoleService = require('../../modules/config/services/memberSkillRoleService');
 const memberIntroductionRepository = require('../../db/repositories/memberIntroductionRepository');
 const logger = require('../../logger');
-
-function isCoachEligible(skillOptionKey) {
-  return ['medium', 'expert'].includes(skillOptionKey);
-}
 
 function isRoleButton(customId) {
   if (customId.startsWith(`${customIds.INTRODUCE_SELF}:`)) return true;
@@ -126,7 +123,11 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
     followUp += `\nIf you need help getting started, watch for members with <@&${communitySettings.coach_role_id}>. They opted in as coaches.`;
   }
 
-  if (groupKey === 'skill' && isCoachEligible(selected.option_key) && communitySettings.coach_role_id) {
+  if (
+    groupKey === 'skill' &&
+    memberSkillRoleService.isHelperEligibleSkill(selected.option_key, selected.label) &&
+    communitySettings.coach_role_id
+  ) {
     followUp += `\nYou can also tap **Toggle Helper Role** if you want beginners to know you are available to help.`;
   }
 
@@ -143,11 +144,9 @@ async function handleCoachToggle(interaction) {
     return true;
   }
 
-  const skillRoles = await onboardingRoleService.listRolesByGroup(interaction.guild.id, 'skill');
-  const selectedSkill = skillRoles.find(role => interaction.member.roles.cache.has(role.role_id));
-
-  if (!selectedSkill || !isCoachEligible(selectedSkill.option_key)) {
-    await respondEphemeral(interaction, 'Only members with the Medium or Expert role can opt into the helper role.');
+  const isEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(interaction.member);
+  if (!isEligible) {
+    await respondEphemeral(interaction, 'Only members with an eligible skill role can opt into the helper role.');
     return true;
   }
 
@@ -406,7 +405,10 @@ async function handleRoleSelect(interaction) {
       : `Your ${category.label.toLowerCase()} roles are already up to date.`;
     const components = [];
 
-    if (category.category_key === 'skill' && result.selectedOptions.some(option => isCoachEligible(option.option_key))) {
+    if (
+      category.category_key === 'skill' &&
+      result.selectedOptions.some(option => memberSkillRoleService.isHelperEligibleSkill(option.option_key, option.label))
+    ) {
       const settings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
       if (settings.coach_role_id) {
         message += `\nYou can also tap **Toggle Helper Role** if you want beginners to know you are available to help.`;
