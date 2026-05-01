@@ -215,7 +215,7 @@ function findPanelMessage(messages, marker, clientUserId) {
 }
 
 async function findExistingPanelMessage(channel, marker, clientUserId) {
-  const pinned = await channel.messages.fetchPins().catch(() => null);
+  const pinned = await channel.messages.fetchPinned().catch(() => null);
   if (pinned) {
     const pinnedMatch = findPanelMessage(pinned, marker, clientUserId);
     if (pinnedMatch) return pinnedMatch;

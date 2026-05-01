@@ -89,18 +89,28 @@ function buildRolePanelContent(data) {
   return lines.join('\n');
 }
 
-async function findExistingRolePanelMessage(channel, clientUserId) {
-  const recentMessages = await channel.messages.fetch({ limit: 25 });
-  return recentMessages.find(message =>
-    message.author.id === clientUserId &&
+function isRolePanelMessage(message, clientUserId) {
+  return message.author.id === clientUserId &&
     (
+      message.content.includes('**Role commands**') ||
       message.content.includes('Select your onboarding roles below') ||
       message.content.includes('Discord Onboarding handles your platform') ||
       message.content.includes('**Role setup:**') ||
       message.content.includes('**Choose your roles:**') ||
       message.content.includes('**Role options:**')
-    )
-  );
+    );
+}
+
+async function findExistingRolePanelMessage(channel, clientUserId) {
+  const pinnedMessages = await channel.messages.fetchPinned().catch(() => null);
+  const pinnedPanel = pinnedMessages
+    ? pinnedMessages.find(message => isRolePanelMessage(message, clientUserId))
+    : null;
+
+  if (pinnedPanel) return pinnedPanel;
+
+  const recentMessages = await channel.messages.fetch({ limit: 25 });
+  return recentMessages.find(message => isRolePanelMessage(message, clientUserId));
 }
 
 async function syncPublicRoleReactions(message, publicRoles) {
