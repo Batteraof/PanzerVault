@@ -152,6 +152,34 @@ async function logSubmissionPosted(client, settings, submission, submitter) {
   await sendLog(client, settings, embed);
 }
 
+async function sendStaffSubmissionCopy(client, settings, submission, assets, tags, submitter) {
+  if (!settings || !settings.log_channel_id) return;
+
+  const channel = await fetchTextChannel(client, settings.log_channel_id);
+  if (!channel) {
+    logger.warn('Gallery staff copy channel is missing or not text based', settings.log_channel_id);
+    return;
+  }
+
+  const files = buildGalleryFiles(submission, assets);
+  const embeds = buildGalleryEmbeds(submission, assets, tags, submitter);
+  const messageUrl = submission.gallery_message_id
+    ? `https://discord.com/channels/${submission.guild_id}/${submission.target_channel_id}/${submission.gallery_message_id}`
+    : null;
+
+  await channel.send({
+    content: [
+      `Staff copy for gallery submission #${submission.id} from <@${submission.user_id}>.`,
+      messageUrl ? `Public post: ${messageUrl}` : null
+    ].filter(Boolean).join('\n'),
+    embeds,
+    files,
+    allowedMentions: { parse: [] }
+  }).catch(error => {
+    logger.warn('Failed to send gallery staff copy', error);
+  });
+}
+
 async function logSubmissionRemoved(client, settings, submission, moderator, reason, deletionResult) {
   const embed = new EmbedBuilder()
     .setColor(0xED4245)
@@ -208,6 +236,7 @@ module.exports = {
   logSubmissionRemoved,
   logGalleryBlacklist,
   logGalleryMessageDeleted,
+  sendStaffSubmissionCopy,
   buildGalleryEmbeds,
   buildGalleryFiles
 };

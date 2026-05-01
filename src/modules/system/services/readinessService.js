@@ -250,10 +250,10 @@ function buildMediaSection(communitySettings, metadata) {
     channelItem(
       metadata,
       communitySettings?.media_channel_id,
-      'Media channel',
+      'Media guide channel',
       {
         missingStatus: 'warn',
-        missingMessage: 'Not configured yet. Direct media uploads will stay manual until you set a shared media channel.'
+        missingMessage: 'Optional. Members can still submit art, screenshots, and videos with /submit.'
       }
     )
   ]);
@@ -265,7 +265,7 @@ function buildGallerySection(gallerySettings, communitySettings, metadata) {
       'gallery',
       'Gallery',
       [
-        makeItem('ok', 'Shared media flow', 'Direct uploads are handled through the shared media channel. Separate showcase and meme archive channels are optional.'),
+        makeItem('ok', 'Submit flow', 'Gallery posts are handled through /submit. Separate showcase and meme archive channels are optional.'),
         hasChannel(metadata, gallerySettings?.showcase_channel_id)
           ? makeItem('ok', 'Showcase archive', 'Configured and visible to the bot.')
           : makeItem('ok', 'Showcase archive', 'Optional and not configured.'),
@@ -273,7 +273,7 @@ function buildGallerySection(gallerySettings, communitySettings, metadata) {
           ? makeItem('ok', 'Meme archive', 'Configured and visible to the bot.')
           : makeItem('ok', 'Meme archive', 'Optional and not configured.')
       ],
-      'Shared media intake is live. Separate archive channels are optional.'
+      '/submit is live. Separate archive channels are optional.'
     );
   }
 
@@ -298,12 +298,12 @@ function buildVideoSection(communitySettings, metadata) {
       'video',
       'Video Submissions',
       [
-        makeItem('ok', 'Shared media flow', 'Videos and YouTube links are handled in the shared media channel. A separate video archive channel is optional.'),
+        makeItem('ok', 'Submit flow', 'Videos and YouTube links are handled through /submit. A separate video archive channel is optional.'),
         hasChannel(metadata, communitySettings?.video_channel_id)
           ? makeItem('ok', 'Video archive channel', 'Configured and visible to the bot.')
           : makeItem('ok', 'Video archive channel', 'Optional and not configured.')
       ],
-      'Shared media intake is configured. Separate video archive is optional.'
+      '/submit is configured. Separate video archive is optional.'
     );
   }
 

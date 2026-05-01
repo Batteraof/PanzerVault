@@ -39,11 +39,11 @@ function buildMediaGuidePanel() {
       new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle('Media Guide')
-        .setDescription('Post screenshots, art, uploaded clips, or YouTube links directly in this channel. When the bot detects real media, it replies with a clean button so you can add a title, reusable tags, and an optional description.')
+        .setDescription('Use `/submit` to post screenshots, art, or YouTube links through the guided submission flow. The bot no longer watches normal chat messages for media.')
         .addFields(
           {
             name: 'How It Works',
-            value: '1. Post your media normally.\n2. Click **Add details** on the bot reply.\n3. Fill in the popup form.\n4. Reuse existing tags or type your own. If a tag is close to an existing one, the bot suggests it.',
+            value: '1. Run `/submit` and attach your images if you are posting art or screenshots.\n2. Choose Gallery or Video.\n3. Add category, tags, and an optional description.\n4. The public post is created and staff receive a private copy.',
             inline: false
           },
           {
@@ -53,7 +53,7 @@ function buildMediaGuidePanel() {
           },
           {
             name: 'Notes',
-            value: 'Normal chatting is allowed here. The bot only prompts when it sees real media. Media posts do not grant XP.',
+            value: 'Normal chatting will not trigger submissions. Media posts do not grant XP.',
             inline: true
           },
           {

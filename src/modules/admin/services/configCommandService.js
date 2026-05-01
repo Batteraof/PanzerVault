@@ -281,7 +281,7 @@ async function handleCommunity(interaction) {
       media_channel_id: channel.id
     });
     await serverPanelService.refreshGuildPanels(interaction.client, interaction.guild.id);
-    return `Direct media uploads will now use ${channel}.`;
+    return `The media guide panel will now use ${channel}. Members should still submit media with /submit.`;
   }
   if (subcommand === 'video-channel') {
     const channel = interaction.options.getChannel('channel', true);

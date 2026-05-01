@@ -141,6 +141,14 @@ async function submitPrepared(interaction, rawInput, options = {}) {
       updatedSubmission,
       interaction.user
     );
+    await galleryPostService.sendStaffSubmissionCopy(
+      interaction.client,
+      created.settings,
+      updatedSubmission,
+      created.assets,
+      created.tags,
+      interaction.user
+    );
     await notifyShowcasePosted(interaction.client, interaction.guild.id, updatedSubmission, message);
 
     return {

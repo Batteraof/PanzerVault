@@ -1,6 +1,5 @@
 const xpService = require('../../modules/leveling/services/xpService');
 const softModerationService = require('../../modules/community/services/softModerationService');
-const mediaIntakeService = require('../../modules/media/services/mediaIntakeService');
 const logger = require('../../logger');
 
 async function handleMessageCreate(message) {
@@ -20,12 +19,6 @@ async function handleMessageCreate(message) {
 
   if (blocked) {
     return;
-  }
-
-  try {
-    await mediaIntakeService.processMessage(message);
-  } catch (error) {
-    logger.warn('Failed to process media intake', error);
   }
 
   try {

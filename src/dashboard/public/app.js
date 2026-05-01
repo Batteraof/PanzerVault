@@ -686,9 +686,9 @@ function renderCommunitySettings() {
           </label>
 
           <label class="field">
-            <span>Shared media channel</span>
-            <select name="mediaChannelId">${selectOptions(metadata.channels, community.media_channel_id, 'Choose a media intake channel')}</select>
-            <small>Direct image, video, and link submissions are watched here.</small>
+            <span>Media guide channel</span>
+            <select name="mediaChannelId">${selectOptions(metadata.channels, community.media_channel_id, 'Choose a media guide channel')}</select>
+            <small>Optional guide panel channel. Submissions happen through /submit.</small>
           </label>
 
           <label class="field">
