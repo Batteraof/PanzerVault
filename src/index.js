@@ -31,7 +31,8 @@ const client = new Client({
   partials: [
     Partials.Message,
     Partials.Channel,
-    Partials.Reaction
+    Partials.Reaction,
+    Partials.User
   ]
 });
 

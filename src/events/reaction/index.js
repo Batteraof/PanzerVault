@@ -16,17 +16,14 @@ async function fetchPartial(value) {
   return value;
 }
 
-async function isRolePanelMessage(message) {
+async function isRolePanelChannelMessage(message) {
   if (!message.guild || message.author?.id !== message.client.user.id) return false;
 
   const settings = await botSettingsService.ensureGuildSettings(message.guild.id);
   const channelId = settings.role_panel_channel_id || config.channels.rolePanel;
   if (channelId && message.channel.id !== channelId) return false;
 
-  const content = String(message.content || '');
-  return content.includes('**Role commands**') ||
-    content.includes('**Role options**') ||
-    content.includes('**Choose your roles:**');
+  return true;
 }
 
 async function findPublicRoleForReaction(guildId, reaction) {
@@ -45,7 +42,7 @@ async function updateReactionRole(reaction, user, shouldAdd) {
   if (!fullReaction) return;
 
   const message = await fetchPartial(fullReaction.message).catch(() => null);
-  if (!message || !await isRolePanelMessage(message)) return;
+  if (!message || !await isRolePanelChannelMessage(message)) return;
 
   const selected = await findPublicRoleForReaction(message.guild.id, fullReaction);
   if (!selected) return;
