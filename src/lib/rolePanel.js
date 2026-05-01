@@ -1,13 +1,10 @@
 const {
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  StringSelectMenuBuilder
+  ButtonStyle
 } = require('discord.js');
 const config = require('../config');
 const customIds = require('./customIds');
-const { buildTeamRolePicker } = require('./teamRolePicker');
-const { buildRoleCategoryPicker } = require('./roleCategoryPicker');
 const botSettingsService = require('../modules/config/services/botSettingsService');
 const communitySettingsService = require('../modules/config/services/communitySettingsService');
 const onboardingRoleService = require('../modules/config/services/onboardingRoleService');
@@ -16,21 +13,6 @@ const roleCategoryService = require('../modules/config/services/roleCategoryServ
 const logger = require('../logger');
 
 let rolePanelMessageId = config.rolePanelMessageId;
-let teamPanelMessageId = null;
-
-function buildSelectMenu(customId, placeholder, options) {
-  return new StringSelectMenuBuilder()
-    .setCustomId(customId)
-    .setPlaceholder(placeholder)
-    .setMinValues(1)
-    .setMaxValues(1)
-    .addOptions(
-      options.map(option => ({
-        label: option.label,
-        value: option.option_key || option.key
-      }))
-    );
-}
 
 async function buildRolePanelData(guildId) {
   const [botSettings, communitySettings, categories, skillRoles, regionRoles, publicRoles] = await Promise.all([
@@ -117,17 +99,6 @@ async function findExistingRolePanelMessage(channel, clientUserId) {
       message.content.includes('**Role setup:**') ||
       message.content.includes('**Choose your roles:**') ||
       message.content.includes('**Role options:**')
-    )
-  );
-}
-
-async function findExistingTeamPanelMessage(channel, clientUserId) {
-  const recentMessages = await channel.messages.fetch({ limit: 25 });
-  return recentMessages.find(message =>
-    message.author.id === clientUserId &&
-    (
-      message.content.includes('**Choose your team:**') ||
-      message.content.includes('**Team selection:**')
     )
   );
 }
@@ -230,50 +201,10 @@ async function setupRolePanel(client) {
   };
 }
 
-async function setupTeamPanelInChannel(channel, clientUserId) {
-  let existing = null;
-
-  if (teamPanelMessageId) {
-    existing = await channel.messages.fetch(teamPanelMessageId).catch(() => null);
-  }
-
-  if (!existing) {
-    existing = await findExistingTeamPanelMessage(channel, clientUserId);
-  }
-
-  const picker = await buildTeamRolePicker(channel.guild.id);
-  const content = [
-    '**Choose your team**',
-    'Pick the group you want shown on your profile. You can change teams any time from this menu.',
-    'Use `/team clear` if you want to remove your current team role.',
-    '',
-    picker.content
-  ].join('\n');
-
-  if (!existing) {
-    const message = await channel.send({
-      content,
-      components: picker.components
-    });
-    teamPanelMessageId = message.id;
-    logger.info('Created team panel message', message.id);
-    return { ok: true, action: 'created', messageId: message.id };
-  }
-
-  await existing.edit({
-    content,
-    components: picker.components
-  });
-  teamPanelMessageId = existing.id;
-  logger.info('Updated team panel message', existing.id);
-  return { ok: true, action: 'updated', messageId: existing.id };
-}
-
 module.exports = {
   buildRolePanelComponents,
   buildRolePanelContent,
   buildRolePanelData,
-  setupTeamPanelInChannel,
   syncPublicRoleReactions,
   setupRolePanel
 };

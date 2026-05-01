@@ -23,7 +23,10 @@ async function isRolePanelMessage(message) {
   const channelId = settings.role_panel_channel_id || config.channels.rolePanel;
   if (channelId && message.channel.id !== channelId) return false;
 
-  return String(message.content || '').includes('**Choose your roles:**');
+  const content = String(message.content || '');
+  return content.includes('**Role commands**') ||
+    content.includes('**Role options**') ||
+    content.includes('**Choose your roles:**');
 }
 
 async function findPublicRoleForReaction(guildId, reaction) {

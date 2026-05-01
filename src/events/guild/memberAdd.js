@@ -109,7 +109,9 @@ async function handleGuildMemberAdd(member) {
   if (!channel || !channel.isTextBased()) return;
 
   try {
-    await channel.send(buildWelcomePayload(member));
+    await channel.send(buildWelcomePayload(member, {
+      roleChannelId: settings.role_panel_channel_id || config.channels.rolePanel
+    }));
     await maybeSendPrivateIntroductionPrompt(member);
     await maybeSendHelperPrompt(member, channel);
   } catch (error) {

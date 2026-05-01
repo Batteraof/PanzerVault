@@ -33,9 +33,3 @@ SELECT DISTINCT guild_id, 'region', 'region', 'Region', 'Choose your usual play 
 FROM guild_selectable_roles
 WHERE group_key = 'region'
 ON CONFLICT (guild_id, category_key) DO NOTHING;
-
-INSERT INTO guild_role_categories (guild_id, category_key, command_name, label, description, selection_mode, sort_order)
-SELECT DISTINCT guild_id, 'team', 'team', 'Team', 'Choose your team role.', 'single', 30
-FROM guild_selectable_roles
-WHERE group_key = 'team'
-ON CONFLICT (guild_id, category_key) DO NOTHING;

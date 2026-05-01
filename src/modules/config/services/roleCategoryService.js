@@ -19,14 +19,6 @@ const DEFAULT_CATEGORIES = [
     selectionMode: 'single',
     sortOrder: 20
   },
-  {
-    categoryKey: 'team',
-    commandName: 'team',
-    label: 'Team',
-    description: 'Choose your team role.',
-    selectionMode: 'single',
-    sortOrder: 30
-  }
 ];
 
 function normalizeKey(value) {

@@ -21,9 +21,7 @@ const onboardingRoleService = require('../../modules/config/services/onboardingR
 const publicRoleService = require('../../modules/config/services/publicRoleService');
 const roleCategoryService = require('../../modules/config/services/roleCategoryService');
 const memberRoleCategoryService = require('../../modules/config/services/memberRoleCategoryService');
-const memberTeamRoleService = require('../../modules/config/services/memberTeamRoleService');
 const memberIntroductionRepository = require('../../db/repositories/memberIntroductionRepository');
-const { buildTeamRolePicker } = require('../../lib/teamRolePicker');
 const logger = require('../../logger');
 
 function isCoachEligible(skillOptionKey) {
@@ -37,7 +35,6 @@ function isRoleButton(customId) {
     customIds.JOIN_INFO,
     customIds.INTRODUCE_SELF,
     customIds.SITE_INFO,
-    customIds.TEAM_MENU,
     customIds.ROLES_MENU,
     customIds.COACH_TOGGLE,
     customIds.PUBLIC_ROLE_CLEAR
@@ -58,7 +55,6 @@ function isRoleSelect(customId) {
   return [
     customIds.SKILL_SELECT,
     customIds.REGION_SELECT,
-    customIds.TEAM_SELECT,
     customIds.PUBLIC_ROLE_SELECT,
     customIds.ROLE_SELECT
   ].includes(customId);
@@ -338,15 +334,9 @@ async function handleIntroduceSelfSubmit(interaction) {
     logger.warn('Failed to add welcome wave reaction', error);
   });
 
-  const picker = interaction.inGuild() ? await buildTeamRolePicker(guildId) : { content: '', components: [] };
-  const teamLine = picker.components.length > 0
-    ? '\n\nYou can also choose a team now if you want.'
-    : '';
-  const pickerLine = picker.content ? `\n\n${picker.content}` : '';
-
   await respondEphemeral(interaction, {
-    content: `Thanks. I posted your introduction in ${channel}.${teamLine}${pickerLine}`,
-    components: picker.components
+    content: `Thanks. I posted your introduction in ${channel}.`,
+    components: []
   });
   return true;
 }
@@ -382,10 +372,6 @@ async function handleRoleButton(interaction) {
     return respondEphemeral(interaction, {
       content: `Visit the server site for community links, server info, and the quickest overview of what Tanks Let Loose is about:\n${config.channels.siteUrl}`
     });
-  }
-
-  if (interaction.customId === customIds.TEAM_MENU) {
-    return respondEphemeral(interaction, await buildTeamRolePicker(interaction.guild.id));
   }
 
   if (interaction.customId === customIds.COACH_TOGGLE) {
@@ -449,14 +435,6 @@ async function handleRoleSelect(interaction) {
 
   if (interaction.customId === customIds.ROLE_SELECT) {
     return assignRoleFromGroup(interaction, 'skill', interaction.values[0].replace('role_', ''));
-  }
-
-  if (interaction.customId === customIds.TEAM_SELECT) {
-    const result = await memberTeamRoleService.setMemberTeamRole(interaction.member, interaction.values[0]);
-    await respondEphemeral(interaction, result.ok
-      ? `Done. Your team role is now ${result.role}.`
-      : result.message);
-    return true;
   }
 
   if (interaction.customId === customIds.PUBLIC_ROLE_SELECT) {

@@ -12,31 +12,42 @@ function buildWelcomePayload(member, options = {}) {
   const memberCount = options.memberCount || guild.memberCount;
   const avatarUrl = options.avatarUrl || member.user.displayAvatarURL({ dynamic: true, size: 256 });
   const mention = options.mention || `${member}`;
+  const roleChannelId = options.roleChannelId || process.env.ROLE_PANEL_CHANNEL_ID || null;
+  const siteLine = options.siteLine || 'Server information, useful tools, links, and event details are waiting there.';
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle(`Welcome to ${guildName}`)
-    .setDescription(`Hey ${mention}, glad you made it in. Discord already handled the basics, so the next step is just getting settled and saying hello when you feel like it.`)
+    .setDescription([
+      `Welcome ${mention}. Glad to have you with us.`,
+      '',
+      'Settle in, take a look around, and have a good time with the community.'
+    ].join('\n'))
     .setThumbnail(avatarUrl)
     .setImage('https://i.imgur.com/jNjayEQ.png')
     .addFields(
       { name: 'Members', value: `${memberCount}`, inline: true },
-      { name: 'Site', value: 'Server overview, links, events, and community info live there.', inline: false },
-      { name: 'General', value: 'Say hello when you are ready. New introductions are posted in general so members can wave back.', inline: false }
+      { name: 'Start Here', value: siteLine, inline: false },
+      {
+        name: 'Roles',
+        value: roleChannelId ? `Visit <#${roleChannelId}> to update roles and choose the pings you want.` : 'Visit the roles channel to update roles and choose the pings you want.',
+        inline: false
+      },
+      { name: 'Say Hello', value: 'Introduce yourself when you are ready so the server can welcome you properly.', inline: false }
     )
-    .setFooter({ text: 'Enjoy your stay.' })
+    .setFooter({ text: 'Enjoy your stay in PanzerVault.' })
     .setTimestamp();
 
   const row = new ActionRowBuilder()
     .addComponents(
       new ButtonBuilder()
-        .setLabel('Visit the site')
+        .setLabel('Visit Site')
         .setStyle(ButtonStyle.Primary)
         .setCustomId(customIds.SITE_INFO),
       new ButtonBuilder()
-        .setLabel('Choose team')
-        .setStyle(ButtonStyle.Primary)
-        .setCustomId(customIds.TEAM_MENU)
+        .setLabel('Introduce Yourself')
+        .setStyle(ButtonStyle.Secondary)
+        .setCustomId(`${customIds.INTRODUCE_SELF}:${guild.id}`)
     );
 
   return {

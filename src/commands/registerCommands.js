@@ -6,7 +6,6 @@ const logger = require('../logger');
 const botCommand = require('./bot');
 const roleCommand = require('./role');
 const skillCommand = require('./skill');
-const teamCommand = require('./team');
 const roleCategoryCommand = require('./roleCategoryCommand');
 const rankCommand = require('./rank');
 const rankResetCommand = require('./rankReset');
@@ -36,7 +35,6 @@ async function registerCommands() {
     botCommand.data.toJSON(),
     roleCommand.data.toJSON(),
     skillCommand.data.toJSON(),
-    teamCommand.data.toJSON(),
     rankCommand.data.toJSON(),
     rankResetCommand.data.toJSON(),
     submitCommand.data.toJSON(),
