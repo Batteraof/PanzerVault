@@ -22,7 +22,7 @@ module.exports = {
   INITIAL_APPROVED_TAGS,
   ALLOWED_IMAGE_EXTENSIONS: ['.png', '.jpg', '.jpeg'],
   ALLOWED_IMAGE_CONTENT_TYPES: ['image/png', 'image/jpeg', 'image/jpg'],
-  MAX_IMAGES: 5,
+  MAX_IMAGES: 10,
   MIN_IMAGES: 1,
   MAX_CAPTION_LENGTH: 300,
   YOUTUBE_HOSTNAMES: [

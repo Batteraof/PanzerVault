@@ -12,7 +12,7 @@ function buildCategoryCommand(category) {
 async function buildDynamicCategoryCommands(guildId) {
   const categories = await roleCategoryService.listCategories(guildId);
   return categories
-    .filter(category => !['skill', 'team'].includes(category.command_name))
+    .filter(category => category.command_name !== 'team')
     .map(buildCategoryCommand);
 }
 

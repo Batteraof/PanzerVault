@@ -1,11 +1,19 @@
 const xpService = require('../../modules/leveling/services/xpService');
 const softModerationService = require('../../modules/community/services/softModerationService');
+const submitEntryFlow = require('../../modules/interactions/flows/submitEntryFlow');
 const logger = require('../../logger');
 
 async function handleMessageCreate(message) {
   if (message.content === '!ping') {
     await message.reply('Pong!');
     return;
+  }
+
+  try {
+    const capturedSubmissionAssets = await submitEntryFlow.captureMessageAttachments(message);
+    if (capturedSubmissionAssets) return;
+  } catch (error) {
+    logger.warn('Failed to capture submit draft attachments', error);
   }
 
   let blocked = false;

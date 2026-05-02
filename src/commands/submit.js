@@ -1,52 +1,26 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const submitEntryFlow = require('../modules/interactions/flows/submitEntryFlow');
 const { beginEphemeralReply } = require('../lib/beginEphemeralReply');
-
-function addAttachmentOptions(builder) {
-  return builder
-    .addAttachmentOption(option =>
-      option
-        .setName('image_1')
-        .setDescription('Optional PNG or JPG image for a gallery submission.')
-        .setRequired(false)
-    )
-    .addAttachmentOption(option =>
-      option
-        .setName('image_2')
-        .setDescription('Optional PNG or JPG image.')
-        .setRequired(false)
-    )
-    .addAttachmentOption(option =>
-      option
-        .setName('image_3')
-        .setDescription('Optional PNG or JPG image.')
-        .setRequired(false)
-    )
-    .addAttachmentOption(option =>
-      option
-        .setName('image_4')
-        .setDescription('Optional PNG or JPG image.')
-        .setRequired(false)
-    )
-    .addAttachmentOption(option =>
-      option
-        .setName('image_5')
-        .setDescription('Optional PNG or JPG image.')
-        .setRequired(false)
-    );
-}
+const communitySettingsService = require('../modules/config/services/communitySettingsService');
 
 module.exports = {
-  data: addAttachmentOptions(
-    new SlashCommandBuilder()
-      .setName('submit')
-      .setDescription('Submit art, screenshots, or a video through the guided posting flow.')
-  ),
+  data: new SlashCommandBuilder()
+    .setName('submit')
+    .setDescription('Optionally submit art, screenshots, or a video for showcase and promo use.'),
 
   async execute(interaction) {
     if (!interaction.guild) {
       await interaction.reply({
         content: 'Submissions can only be used in a server.',
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
+    const settings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+    if (settings.media_channel_id && interaction.channelId !== settings.media_channel_id) {
+      await interaction.reply({
+        content: `Use \`/submit\` in <#${settings.media_channel_id}> so media submissions stay organized.`,
         flags: MessageFlags.Ephemeral
       });
       return;

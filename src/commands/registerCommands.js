@@ -4,18 +4,14 @@ const { REST, Routes } = require('discord.js');
 const config = require('../config');
 const logger = require('../logger');
 const botCommand = require('./bot');
-const roleCommand = require('./role');
-const skillCommand = require('./skill');
 const roleCategoryCommand = require('./roleCategoryCommand');
 const rankCommand = require('./rank');
 const rankResetCommand = require('./rankReset');
 const galleryCommand = require('./gallery');
 const submitCommand = require('./submit');
-const tagsCommand = require('./tags');
 const configCommand = require('./config');
 const dashboardCommand = require('./dashboard');
 const leaderboardCommand = require('./leaderboard');
-const profileCommand = require('./profile');
 const ticketCommand = require('./ticket');
 const ticketManageCommand = require('./ticketManage');
 const eventCommand = require('./event');
@@ -33,17 +29,13 @@ async function registerCommands() {
     : [];
   const commands = [
     botCommand.data.toJSON(),
-    roleCommand.data.toJSON(),
-    skillCommand.data.toJSON(),
     rankCommand.data.toJSON(),
     rankResetCommand.data.toJSON(),
     submitCommand.data.toJSON(),
-    tagsCommand.data.toJSON(),
     galleryCommand.data.toJSON(),
     configCommand.data.toJSON(),
     dashboardCommand.data.toJSON(),
     leaderboardCommand.data.toJSON(),
-    profileCommand.data.toJSON(),
     ticketCommand.data.toJSON(),
     ticketManageCommand.data.toJSON(),
     eventCommand.data.toJSON(),

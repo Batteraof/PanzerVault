@@ -27,6 +27,7 @@ const logger = require('../../logger');
 
 function isRoleButton(customId) {
   if (customId.startsWith(`${customIds.INTRODUCE_SELF}:`)) return true;
+  if (customId.startsWith(`${customIds.COACH_TOGGLE}:`)) return true;
 
   return [
     customIds.JOIN_INFO,
@@ -63,10 +64,12 @@ async function respondEphemeral(interaction, payload) {
     return interaction.editReply(response);
   }
 
-  return interaction.reply({
-    ...response,
-    flags: MessageFlags.Ephemeral
-  });
+  return interaction.reply(interaction.inGuild()
+    ? {
+        ...response,
+        flags: MessageFlags.Ephemeral
+      }
+    : response);
 }
 
 async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
@@ -87,7 +90,7 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
     return true;
   }
 
-  if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+  if (!botMember || !botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
     await respondEphemeral(interaction, 'I do not have permission to manage roles.');
     return true;
   }
@@ -137,21 +140,36 @@ async function assignRoleFromGroup(interaction, groupKey, selectedValue) {
 }
 
 async function handleCoachToggle(interaction) {
-  const communitySettings = await communitySettingsService.ensureGuildSettings(interaction.guild.id);
+  const guildId = guildIdFromInteraction(interaction);
+  const guild = interaction.guild || interaction.client.guilds.cache.get(guildId) || await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await respondEphemeral(interaction, 'I could not find the server for the helper role. Please try from the roles channel.');
+    return true;
+  }
+
+  const member = interaction.member?.roles
+    ? interaction.member
+    : await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member) {
+    await respondEphemeral(interaction, 'I could not find your server membership. Please try from the roles channel.');
+    return true;
+  }
+
+  const communitySettings = await communitySettingsService.ensureGuildSettings(guild.id);
   const coachRoleId = communitySettings.coach_role_id;
   if (!coachRoleId) {
     await respondEphemeral(interaction, 'The helper role is not configured yet.');
     return true;
   }
 
-  const isEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(interaction.member);
+  const isEligible = await memberSkillRoleService.memberHasHelperEligibleSkill(member);
   if (!isEligible) {
     await respondEphemeral(interaction, 'Only members with an eligible skill role can opt into the helper role.');
     return true;
   }
 
-  const coachRole = interaction.guild.roles.cache.get(coachRoleId);
-  const botMember = interaction.guild.members.me;
+  const coachRole = guild.roles.cache.get(coachRoleId) || await guild.roles.fetch(coachRoleId).catch(() => null);
+  const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
   if (!coachRole) {
     await respondEphemeral(interaction, 'The helper role no longer exists.');
     return true;
@@ -167,13 +185,13 @@ async function handleCoachToggle(interaction) {
     return true;
   }
 
-  if (interaction.member.roles.cache.has(coachRole.id)) {
-    await interaction.member.roles.remove(coachRole);
+  if (member.roles.cache.has(coachRole.id)) {
+    await member.roles.remove(coachRole);
     await respondEphemeral(interaction, `Helper role disabled. You no longer have ${coachRole}.`);
     return true;
   }
 
-  await interaction.member.roles.add(coachRole);
+  await member.roles.add(coachRole);
   await respondEphemeral(interaction, `Helper role enabled. You now have ${coachRole} so beginners know they can ask you for help.`);
   return true;
 }
@@ -373,7 +391,10 @@ async function handleRoleButton(interaction) {
     });
   }
 
-  if (interaction.customId === customIds.COACH_TOGGLE) {
+  if (
+    interaction.customId === customIds.COACH_TOGGLE ||
+    interaction.customId.startsWith(`${customIds.COACH_TOGGLE}:`)
+  ) {
     return handleCoachToggle(interaction);
   }
 
@@ -463,14 +484,14 @@ async function handleRoleInteraction(interaction) {
     ) {
       return handleRoleButton(interaction);
     }
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply(interaction.inGuild() ? { flags: MessageFlags.Ephemeral } : {});
     const handled = await handleRoleButton(interaction);
     return Boolean(handled);
   }
 
   if (interaction.isStringSelectMenu()) {
     if (!isRoleSelect(interaction.customId)) return false;
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply(interaction.inGuild() ? { flags: MessageFlags.Ephemeral } : {});
     return handleRoleSelect(interaction);
   }
 

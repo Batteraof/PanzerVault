@@ -1,17 +1,13 @@
 const { MessageFlags } = require('discord.js');
 const botCommand = require('../../commands/bot');
-const roleCommand = require('../../commands/role');
-const skillCommand = require('../../commands/skill');
 const roleCategoryCommand = require('../../commands/roleCategoryCommand');
 const rankCommand = require('../../commands/rank');
 const rankResetCommand = require('../../commands/rankReset');
 const galleryCommand = require('../../commands/gallery');
 const submitCommand = require('../../commands/submit');
-const tagsCommand = require('../../commands/tags');
 const configCommand = require('../../commands/config');
 const dashboardCommand = require('../../commands/dashboard');
 const leaderboardCommand = require('../../commands/leaderboard');
-const profileCommand = require('../../commands/profile');
 const ticketCommand = require('../../commands/ticket');
 const ticketManageCommand = require('../../commands/ticketManage');
 const eventCommand = require('../../commands/event');
@@ -26,17 +22,13 @@ const logger = require('../../logger');
 
 const slashCommands = new Map([
   [botCommand.data.name, botCommand],
-  [roleCommand.data.name, roleCommand],
-  [skillCommand.data.name, skillCommand],
   [rankCommand.data.name, rankCommand],
   [rankResetCommand.data.name, rankResetCommand],
   [submitCommand.data.name, submitCommand],
-  [tagsCommand.data.name, tagsCommand],
   [galleryCommand.data.name, galleryCommand],
   [configCommand.data.name, configCommand],
   [dashboardCommand.data.name, dashboardCommand],
   [leaderboardCommand.data.name, leaderboardCommand],
-  [profileCommand.data.name, profileCommand],
   [ticketCommand.data.name, ticketCommand],
   [ticketManageCommand.data.name, ticketManageCommand],
   [eventCommand.data.name, eventCommand],

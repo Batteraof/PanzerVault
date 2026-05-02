@@ -28,17 +28,12 @@ module.exports = {
       .addFields(
         {
           name: 'What I Can Do',
-          value: 'Welcome new members and invite optional introductions\nLet members update their skill role with `/role` or `/skill`\nOffer the helper role to Medium and Expert members\nTrack text and voice XP\nGuide gallery and video submissions with a unified draft wizard\nRun event RSVP posts and reminders\nManage monthly Community Spotlight nominations and voting\nManage support tickets\nPost weekly recaps and server anniversaries\nPoint members to the server site',
+          value: 'Welcome new members and invite optional introductions\nLet members update roles from the roles channel\nOffer the helper role to Medium and Expert members\nTrack text and voice XP\nGuide optional media submissions for showcase and promo use\nRun event RSVP posts and reminders\nManage monthly Community Spotlight nominations and voting\nManage support tickets\nPost weekly recaps and server anniversaries\nPoint members to the server site',
           inline: false
         },
         {
           name: 'Public Commands',
-          value: '`/bot`\n`/role`\n`/skill`\n`/rank`\n`/leaderboard`\n`/profile`\n`/submit`\n`/tags`\n`/spotlight`\n`/ticket`',
-          inline: true
-        },
-        {
-          name: 'Staff Commands',
-          value: '`/dashboard`\n`/config`\n`/gallery`\n`/event`\n`/rank-reset`\n`/spotlight-manage`\n`/ticket-manage`',
+          value: '`/bot`\n`/rank`\n`/leaderboard`\n`/submit`\n`/spotlight`\n`/ticket`\n\nRole commands are only for the roles channel.',
           inline: true
         },
         {

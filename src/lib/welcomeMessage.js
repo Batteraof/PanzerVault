@@ -33,6 +33,11 @@ function buildWelcomePayload(member, options = {}) {
         value: roleChannelId ? `Visit <#${roleChannelId}> to update roles and choose the pings you want.` : 'Visit the roles channel to update roles and choose the pings you want.',
         inline: false
       },
+      {
+        name: 'Bot Guides',
+        value: 'In channels where the bot has a workflow, check the first pinned message for how that channel works.',
+        inline: false
+      },
       { name: 'Say Hello', value: 'Introduce yourself when you are ready so the server can welcome you properly.', inline: false }
     )
     .setFooter({ text: 'Enjoy your stay in PanzerVault.' })
@@ -46,7 +51,7 @@ function buildWelcomePayload(member, options = {}) {
         .setCustomId(customIds.SITE_INFO),
       new ButtonBuilder()
         .setLabel('Introduce Yourself')
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(ButtonStyle.Primary)
         .setCustomId(`${customIds.INTRODUCE_SELF}:${guild.id}`)
     );
 

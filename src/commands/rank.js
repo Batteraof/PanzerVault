@@ -8,7 +8,7 @@ module.exports = {
     .addUserOption(option =>
       option
         .setName('user')
-        .setDescription('The member to inspect.')
+        .setDescription('Show another user\'s rank.')
         .setRequired(false)
     ),
 

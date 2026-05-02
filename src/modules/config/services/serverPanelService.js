@@ -39,11 +39,11 @@ function buildMediaGuidePanel() {
       new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle('Media Guide')
-        .setDescription('Use `/submit` to post screenshots, art, or YouTube links through the guided submission flow. The bot no longer watches normal chat messages for media.')
+        .setDescription('You can post normally here. Use `/submit` only when you want art, screenshots, or YouTube links to be considered for server showcase or promo use.')
         .addFields(
           {
             name: 'How It Works',
-            value: '1. Run `/submit` and attach your images if you are posting art or screenshots.\n2. Choose Gallery or Video.\n3. Add category, tags, and an optional description.\n4. The public post is created and staff receive a private copy.',
+            value: '1. Run `/submit` in this channel.\n2. Choose Gallery or Video.\n3. For Gallery, upload your PNG/JPG images after the private start message opens.\n4. Add category, tags, and an optional description.\n5. The public post is created and staff receive a private copy.',
             inline: false
           },
           {
@@ -80,12 +80,12 @@ function buildGalleryGuidePanel(category) {
         .addFields(
           {
             name: 'How to Submit',
-            value: `Use \`/submit\`, attach 1-5 PNG/JPG images, choose **Gallery**, then finish the rest in the guided wizard.`,
+            value: 'Use `/submit`, choose **Gallery**, upload your PNG/JPG images while the draft is open, then finish the rest in the guided wizard.',
             inline: false
           },
           {
             name: 'Useful Commands',
-            value: '`/submit`\n`/tags`\n`/profile`',
+            value: '`/submit`',
             inline: true
           },
           {
@@ -121,7 +121,7 @@ function buildLevelingGuidePanel() {
         .addFields(
           {
             name: 'Commands',
-            value: '`/rank`\n`/leaderboard`\n`/profile`',
+            value: '`/rank`\n`/leaderboard`',
             inline: true
           },
           {
@@ -170,7 +170,7 @@ function buildVideoGuidePanel() {
           },
           {
             name: 'Useful Commands',
-            value: '`/submit`\n`/bot`\n`/profile`',
+            value: '`/submit`\n`/bot`',
             inline: true
           },
           {

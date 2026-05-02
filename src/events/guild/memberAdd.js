@@ -1,8 +1,7 @@
 const {
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits
+  ButtonStyle
 } = require('discord.js');
 const config = require('../../config');
 const customIds = require('../../lib/customIds');
@@ -12,48 +11,26 @@ const memberSkillRoleService = require('../../modules/config/services/memberSkil
 const { buildWelcomePayload } = require('../../lib/welcomeMessage');
 const logger = require('../../logger');
 
-function parseChannelIdFromUrl(url = '') {
-  const match = String(url).match(/\/channels\/\d+\/(\d+)/);
-  return match ? match[1] : null;
-}
-
-function getGeneralChannelId() {
-  return config.channels.generalChannelId || parseChannelIdFromUrl(config.channels.generalUrl);
-}
-
-async function fetchGeneralChannel(guild) {
-  const channelId = getGeneralChannelId();
-  if (!channelId) return null;
-
-  const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
-  if (!channel || !channel.isTextBased()) return null;
-  return channel;
-}
-
-async function maybeSendHelperPrompt(member, channel = null) {
+async function maybeSendHelperPrompt(member) {
   const communitySettings = await communitySettingsService.ensureGuildSettings(member.guild.id);
   if (!communitySettings.coach_role_id || member.roles.cache.has(communitySettings.coach_role_id)) return;
 
   const eligible = await memberSkillRoleService.memberHasHelperEligibleSkill(member);
   if (!eligible) return;
 
-  const promptChannel = channel && channel.isTextBased() ? channel : await fetchGeneralChannel(member.guild);
-  if (!promptChannel) return;
-
-  const permissions = promptChannel.permissionsFor(member.guild.members.me);
-  if (!permissions || !permissions.has(PermissionFlagsBits.SendMessages)) return;
-
-  await promptChannel.send({
-    content: `${member}, because you joined as Medium or Expert, do you want the helper role so Beginners know they can ask you for help?`,
+  await member.send({
+    content: [
+      `Because you joined ${member.guild.name} as Medium or Expert, you can opt into the helper role.`,
+      'That lets Beginners know they can ask you for help.'
+    ].join('\n'),
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(customIds.COACH_TOGGLE)
+          .setCustomId(`${customIds.COACH_TOGGLE}:${member.guild.id}`)
           .setLabel('I can help beginners')
           .setStyle(ButtonStyle.Primary)
       )
-    ],
-    allowedMentions: { users: [member.id], roles: [] }
+    ]
   }).catch(error => {
     logger.warn('Failed to send helper prompt', error);
   });
@@ -109,11 +86,12 @@ async function handleGuildMemberAdd(member) {
   if (!channel || !channel.isTextBased()) return;
 
   try {
+    const freshGuild = await member.guild.fetch().catch(() => null);
     await channel.send(buildWelcomePayload(member, {
-      roleChannelId: settings.role_panel_channel_id || config.channels.rolePanel
+      roleChannelId: settings.role_panel_channel_id || config.channels.rolePanel,
+      memberCount: freshGuild?.memberCount || member.guild.memberCount
     }));
-    await maybeSendPrivateIntroductionPrompt(member);
-    await maybeSendHelperPrompt(member, channel);
+    await maybeSendHelperPrompt(member);
   } catch (error) {
     logger.warn('Failed to send welcome message', error);
   }
