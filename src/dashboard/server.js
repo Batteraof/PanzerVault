@@ -581,10 +581,12 @@ app.get('/api/overview', async (req, res, next) => {
       db.query(
         `
         SELECT e.*,
-          COUNT(r.*) FILTER (WHERE r.status = 'going')::integer AS going_count,
-          COUNT(r.*) FILTER (WHERE r.status = 'maybe')::integer AS maybe_count
+          COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'going')::integer AS going_count,
+          COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'maybe')::integer AS maybe_count,
+          COUNT(DISTINCT s.id)::integer AS slot_count
         FROM guild_events e
         LEFT JOIN event_rsvps r ON r.event_id = e.id
+        LEFT JOIN event_registration_slots s ON s.event_id = e.id
         WHERE e.guild_id = $1
           AND e.status = 'scheduled'
           AND e.starts_at >= now()
@@ -650,12 +652,14 @@ app.get('/api/events', async (req, res, next) => {
     const result = await db.query(
       `
       SELECT e.*,
-        COUNT(r.*) FILTER (WHERE r.status = 'going')::integer AS going_count,
-        COUNT(r.*) FILTER (WHERE r.status = 'maybe')::integer AS maybe_count,
-        COUNT(a.*)::integer AS attendance_count
+        COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'going')::integer AS going_count,
+        COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'maybe')::integer AS maybe_count,
+        COUNT(DISTINCT a.id)::integer AS attendance_count,
+        COUNT(DISTINCT s.id)::integer AS slot_count
       FROM guild_events e
       LEFT JOIN event_rsvps r ON r.event_id = e.id
       LEFT JOIN event_attendance a ON a.event_id = e.id
+      LEFT JOIN event_registration_slots s ON s.event_id = e.id
       WHERE e.guild_id = $1
       GROUP BY e.id
       ORDER BY e.starts_at DESC
@@ -700,6 +704,20 @@ app.post('/api/events', async (req, res, next) => {
     const externalUrl = eventService.validateLink(req.body.externalUrl || null);
     const imageUrl = eventService.validateImageUrl(req.body.imageUrl || null);
     const description = String(req.body.description || '').trim() || null;
+    const registrationMode = req.body.registrationMode === 'slots' ? 'slots' : 'rsvp';
+    const mapName = String(req.body.mapName || '').trim() || null;
+    const rules = String(req.body.rules || '').trim() || null;
+    let registrationSlots;
+    try {
+      registrationSlots = registrationMode === 'slots'
+        ? eventService.validateRegistrationSlots(req.body.registrationSlots || [])
+        : [];
+    } catch (error) {
+      throw badRequest(error.message);
+    }
+    if (registrationMode === 'slots' && registrationSlots.length === 0) {
+      throw badRequest('Registration-form events need at least one slot.');
+    }
 
     const created = await eventRepository.createEvent({
       guildId,
@@ -708,23 +726,25 @@ app.post('/api/events', async (req, res, next) => {
       description,
       externalUrl,
       imageUrl,
+      registrationMode,
+      mapName,
+      rules,
       timeZone,
       startsAt,
       createdBy: 'dashboard'
     });
 
     try {
-      const counts = {
-        going_count: 0,
-        maybe_count: 0,
-        not_going_count: 0
-      };
+      if (registrationMode === 'slots') {
+        await eventRepository.insertSlots(created.id, registrationSlots);
+      }
 
+      const messagePayload = await eventService.buildEventMessagePayload(created, settings);
       const payload = {
-        content: eventService.buildEventAnnouncementContent(settings),
-        embeds: [eventService.buildEventEmbed(created, counts).toJSON()],
-        components: eventService.buildEventComponents(created).map(row => row.toJSON()),
-        allowed_mentions: eventService.eventAllowedMentions(settings)
+        content: messagePayload.content,
+        embeds: messagePayload.embeds.map(embed => embed.toJSON()),
+        components: messagePayload.components.map(row => row.toJSON()),
+        allowed_mentions: messagePayload.allowedMentions
       };
 
       const message = await discordRequest(`/channels/${created.channel_id}/messages`, {

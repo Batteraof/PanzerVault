@@ -14,12 +14,15 @@ async function createEvent(data, client) {
       description,
       external_url,
       image_url,
+      registration_mode,
+      map_name,
+      rules,
       time_zone,
       starts_at,
       created_by,
       message_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *
     `,
     [
@@ -29,6 +32,9 @@ async function createEvent(data, client) {
       data.description || null,
       data.externalUrl || null,
       data.imageUrl || null,
+      data.registrationMode || 'rsvp',
+      data.mapName || null,
+      data.rules || null,
       data.timeZone || null,
       data.startsAt,
       data.createdBy,
@@ -47,6 +53,9 @@ async function updateEvent(guildId, eventId, updates, client) {
     'description',
     'external_url',
     'image_url',
+    'registration_mode',
+    'map_name',
+    'rules',
     'starts_at',
     'time_zone',
     'reminder_3d_sent_at',
@@ -184,21 +193,148 @@ async function listRsvps(eventId, client) {
   return result.rows;
 }
 
-async function upsertRsvp(eventId, userId, status, client) {
+async function upsertRsvp(eventId, userId, status, client, options = {}) {
   const result = await executor(client).query(
     `
-    INSERT INTO event_rsvps (event_id, user_id, status)
-    VALUES ($1, $2, $3)
+    INSERT INTO event_rsvps (event_id, user_id, status, slot_id)
+    VALUES ($1, $2, $3, $4)
     ON CONFLICT (event_id, user_id)
     DO UPDATE SET
       status = EXCLUDED.status,
+      slot_id = EXCLUDED.slot_id,
       updated_at = now()
     RETURNING *
     `,
-    [eventId, userId, status]
+    [eventId, userId, status, options.slotId || null]
   );
 
   return result.rows[0] || null;
+}
+
+async function insertSlots(eventId, slots, client) {
+  if (!Array.isArray(slots) || slots.length === 0) return [];
+
+  const rows = [];
+  for (const [index, slot] of slots.entries()) {
+    const result = await executor(client).query(
+      `
+      INSERT INTO event_registration_slots (event_id, label, capacity, display_order)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+      `,
+      [
+        eventId,
+        slot.label,
+        slot.capacity,
+        Number.isFinite(Number(slot.displayOrder)) ? Number(slot.displayOrder) : index + 1
+      ]
+    );
+    if (result.rows[0]) rows.push(result.rows[0]);
+  }
+
+  return rows;
+}
+
+async function replaceSlots(eventId, slots, client) {
+  await executor(client).query('DELETE FROM event_registration_slots WHERE event_id = $1', [eventId]);
+  return insertSlots(eventId, slots, client);
+}
+
+async function listSlots(eventId, client) {
+  const result = await executor(client).query(
+    `
+    SELECT *
+    FROM event_registration_slots
+    WHERE event_id = $1
+    ORDER BY display_order ASC, id ASC
+    `,
+    [eventId]
+  );
+
+  return result.rows;
+}
+
+async function getRegistrationState(eventId, client) {
+  const [slots, rsvps] = await Promise.all([
+    listSlots(eventId, client),
+    listRsvps(eventId, client)
+  ]);
+
+  const signupsBySlot = new Map(slots.map(slot => [String(slot.id), []]));
+  const notGoing = [];
+
+  for (const rsvp of rsvps) {
+    if (rsvp.status === 'not_going') {
+      notGoing.push(rsvp);
+      continue;
+    }
+
+    if (rsvp.status === 'going' && rsvp.slot_id && signupsBySlot.has(String(rsvp.slot_id))) {
+      signupsBySlot.get(String(rsvp.slot_id)).push(rsvp);
+    }
+  }
+
+  return {
+    slots: slots.map(slot => ({
+      ...slot,
+      signups: signupsBySlot.get(String(slot.id)) || []
+    })),
+    notGoing
+  };
+}
+
+async function signUpForSlot(eventId, slotId, userId) {
+  return db.withTransaction(async client => {
+    const slotResult = await client.query(
+      `
+      SELECT *
+      FROM event_registration_slots
+      WHERE event_id = $1 AND id = $2
+      FOR UPDATE
+      `,
+      [eventId, slotId]
+    );
+    const slot = slotResult.rows[0] || null;
+    if (!slot) {
+      return { ok: false, reason: 'missing_slot' };
+    }
+
+    const currentResult = await client.query(
+      `
+      SELECT *
+      FROM event_rsvps
+      WHERE event_id = $1 AND user_id = $2
+      FOR UPDATE
+      `,
+      [eventId, userId]
+    );
+    const current = currentResult.rows[0] || null;
+    const alreadyInSlot = current?.status === 'going' && String(current.slot_id) === String(slot.id);
+
+    const countResult = await client.query(
+      `
+      SELECT COUNT(*)::integer AS count
+      FROM event_rsvps
+      WHERE event_id = $1
+        AND slot_id = $2
+        AND status = 'going'
+      `,
+      [eventId, slot.id]
+    );
+    const currentCount = countResult.rows[0] ? countResult.rows[0].count : 0;
+
+    if (!alreadyInSlot && currentCount >= Number(slot.capacity)) {
+      return { ok: false, reason: 'slot_full', slot };
+    }
+
+    const rsvp = await upsertRsvp(eventId, userId, 'going', client, { slotId: slot.id });
+    return {
+      ok: true,
+      slot,
+      rsvp,
+      previousStatus: current ? current.status : null
+    };
+  });
 }
 
 async function getRsvpCounts(eventId, client) {
@@ -386,6 +522,11 @@ module.exports = {
   listUpcoming,
   listRsvps,
   upsertRsvp,
+  insertSlots,
+  replaceSlots,
+  listSlots,
+  getRegistrationState,
+  signUpForSlot,
   getRsvpCounts,
   listRsvpsByStatuses,
   getUserRsvp,

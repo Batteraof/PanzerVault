@@ -366,8 +366,10 @@ function renderOverview() {
     (data.upcomingEvents || []).map(event => row({
       title: event.title,
       meta: formatDateTime(event.starts_at),
-      detail: `${formatCount(event.going_count)} going${event.maybe_count ? ` - ${formatCount(event.maybe_count)} maybe` : ''}`,
-      pill: titleCase(event.status || 'scheduled')
+      detail: event.registration_mode === 'slots'
+        ? `${formatCount(event.going_count)} registered${event.slot_count ? ` - ${formatCount(event.slot_count)} slots` : ''}`
+        : `${formatCount(event.going_count)} going${event.maybe_count ? ` - ${formatCount(event.maybe_count)} maybe` : ''}`,
+      pill: event.registration_mode === 'slots' ? 'Registration' : titleCase(event.status || 'scheduled')
     })).join('') || renderEmpty('No upcoming events yet.', 'Create the next session from the Events tab or with /event create so members have something to rally around.')
   );
 
@@ -441,12 +443,39 @@ function renderEventComposer() {
           <input type="url" name="imageUrl" maxlength="500" placeholder="https://...">
           <small>Shown as the event embed image in Discord.</small>
         </label>
+
+        <label class="field">
+          <span>Registration style</span>
+          <select name="registrationMode">
+            <option value="rsvp">Simple RSVP</option>
+            <option value="slots">Slot registration form</option>
+          </select>
+          <small>Use slot registration for organized matches with named positions.</small>
+        </label>
+
+        <label class="field">
+          <span>Map</span>
+          <input type="text" name="mapName" maxlength="80" placeholder="Map select, Carentan, Foy...">
+          <small>Shown on registration-form events.</small>
+        </label>
       </div>
 
       <label class="field">
         <span>Description</span>
         <textarea name="description" rows="5" maxlength="600" placeholder="Let members know what the session is for, who it is aimed at, and anything they should prepare."></textarea>
         <small>Optional, but it makes the event post feel much more intentional.</small>
+      </label>
+
+      <label class="field">
+        <span>Rules / notes</span>
+        <textarea name="rules" rows="4" maxlength="900" placeholder="ONLY MEDIUM TANK&#10;Bring repair station supplies&#10;Use commander comms clearly."></textarea>
+        <small>For registration-form events, this appears above the slot list.</small>
+      </label>
+
+      <label class="field">
+        <span>Registration slots</span>
+        <textarea name="registrationSlots" rows="5" maxlength="900" placeholder="Commander: 1&#10;Tank Commander: 2&#10;Driver: 3"></textarea>
+        <small>One slot per line. Use "Name: capacity". Required only for slot registration.</small>
       </label>
 
       ${renderStatusMessage(uiState.eventMessage, uiState.eventTone)}
@@ -469,8 +498,10 @@ function renderEvents() {
     state.events.map(event => row({
       title: event.title,
       meta: formatDateTime(event.starts_at),
-      detail: `${formatCount(event.going_count)} going - ${formatCount(event.maybe_count)} maybe - ${formatCount(event.attendance_count)} checked in${event.external_url ? ' - linked briefing' : ''}`,
-      pill: titleCase(event.status || 'scheduled')
+      detail: event.registration_mode === 'slots'
+        ? `${formatCount(event.going_count)} registered across ${formatCount(event.slot_count)} slots - ${event.map_name || 'map select'}${event.external_url ? ' - linked briefing' : ''}`
+        : `${formatCount(event.going_count)} going - ${formatCount(event.maybe_count)} maybe - ${formatCount(event.attendance_count)} checked in${event.external_url ? ' - linked briefing' : ''}`,
+      pill: event.registration_mode === 'slots' ? 'Registration' : titleCase(event.status || 'scheduled')
     })).join('') || renderEmpty('No events found.', 'Scheduled events will appear here with their RSVP and attendance signal.')
   );
 }
@@ -1230,6 +1261,23 @@ async function refreshSettingsView() {
   renderSettings();
 }
 
+function parseRegistrationSlotsInput(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) return null;
+
+      const match = trimmed.match(/^(.+?)(?::|=|-)\s*(\d+)$/);
+      return {
+        label: match ? match[1].trim() : trimmed,
+        capacity: match ? Number.parseInt(match[2], 10) : 1,
+        displayOrder: index + 1
+      };
+    })
+    .filter(Boolean);
+}
+
 async function handleEventCreateSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1250,7 +1298,11 @@ async function handleEventCreateSubmit(event) {
       timeZone: form.elements.timeZone.value,
       description: form.elements.description.value.trim(),
       externalUrl: form.elements.externalUrl.value.trim(),
-      imageUrl: form.elements.imageUrl.value.trim()
+      imageUrl: form.elements.imageUrl.value.trim(),
+      registrationMode: form.elements.registrationMode.value,
+      mapName: form.elements.mapName.value.trim(),
+      rules: form.elements.rules.value.trim(),
+      registrationSlots: parseRegistrationSlotsInput(form.elements.registrationSlots.value)
     };
 
     await apiRequest('/api/events', {

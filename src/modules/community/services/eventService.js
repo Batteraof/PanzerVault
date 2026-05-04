@@ -3,7 +3,9 @@ const {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
-  MessageFlags
+  MessageFlags,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder
 } = require('discord.js');
 const eventRepository = require('../../../db/repositories/eventRepository');
 const communitySettingsService = require('../../config/services/communitySettingsService');
@@ -17,6 +19,13 @@ const RSVP_STATES = {
   MAYBE: 'maybe',
   NOT_GOING: 'not_going'
 };
+
+const REGISTRATION_MODES = {
+  RSVP: 'rsvp',
+  SLOTS: 'slots'
+};
+
+const MAX_REGISTRATION_SLOTS = 10;
 
 function buildRsvpCustomId(eventId, state) {
   return `${customIds.EVENT_RSVP_PREFIX}:${eventId}:${state}`;
@@ -45,7 +54,142 @@ function parseAttendCustomId(customId) {
   };
 }
 
-function buildEventEmbed(event, counts) {
+function buildSlotSignupCustomId(eventId) {
+  return `${customIds.EVENT_SLOT_SIGNUP_PREFIX}:${eventId}`;
+}
+
+function parseSlotSignupCustomId(customId) {
+  const parts = String(customId || '').split(':');
+  if (parts[0] !== customIds.EVENT_SLOT_SIGNUP_PREFIX) return null;
+  return { eventId: Number(parts[1]) };
+}
+
+function buildSlotSelectCustomId(eventId) {
+  return `${customIds.EVENT_SLOT_SELECT_PREFIX}:${eventId}`;
+}
+
+function parseSlotSelectCustomId(customId) {
+  const parts = String(customId || '').split(':');
+  if (parts[0] !== customIds.EVENT_SLOT_SELECT_PREFIX) return null;
+  return { eventId: Number(parts[1]) };
+}
+
+function isSlotRegistrationEvent(event) {
+  return event?.registration_mode === REGISTRATION_MODES.SLOTS;
+}
+
+function normalizeRegistrationMode(value) {
+  return value === REGISTRATION_MODES.SLOTS ? REGISTRATION_MODES.SLOTS : REGISTRATION_MODES.RSVP;
+}
+
+function validateRegistrationSlots(slotsInput) {
+  if (!Array.isArray(slotsInput)) return [];
+
+  const seen = new Set();
+  const slots = [];
+
+  for (const [index, rawSlot] of slotsInput.entries()) {
+    const label = String(rawSlot?.label || '').trim();
+    if (!label) continue;
+
+    const normalizedLabel = label.toLowerCase();
+    if (seen.has(normalizedLabel)) {
+      throw new Error(`Registration slot "${label}" is listed more than once.`);
+    }
+
+    const capacity = Number.parseInt(rawSlot.capacity, 10);
+    if (!Number.isFinite(capacity) || capacity < 1 || capacity > 50) {
+      throw new Error(`Registration slot "${label}" needs a capacity from 1 to 50.`);
+    }
+
+    seen.add(normalizedLabel);
+    slots.push({
+      label: label.slice(0, 80),
+      capacity,
+      displayOrder: Number.isFinite(Number(rawSlot.displayOrder)) ? Number(rawSlot.displayOrder) : index + 1
+    });
+  }
+
+  if (slots.length > MAX_REGISTRATION_SLOTS) {
+    throw new Error(`Registration events can use at most ${MAX_REGISTRATION_SLOTS} slots.`);
+  }
+
+  return slots;
+}
+
+function mentionListForUsers(rows) {
+  if (!rows || rows.length === 0) return '-';
+  return rows.map(row => `<@${row.user_id}>`).join('\n');
+}
+
+function buildSlotSummaryLine(slot) {
+  const count = slot.signups.length;
+  const header = `**${slot.label} - ${count}/${slot.capacity}**`;
+  const members = mentionListForUsers(slot.signups);
+  return `${header}\n${members}`;
+}
+
+function buildRegistrationEventEmbed(event, counts, registration) {
+  const timestamp = Math.floor(new Date(event.starts_at).getTime() / 1000);
+  const lines = [
+    `**DATE:** <t:${timestamp}:F> (<t:${timestamp}:R>)`,
+    `**MAP:** ${event.map_name || 'Map select'}`
+  ];
+
+  if (event.rules) {
+    lines.push('', '**RULES / NOTES:**', event.rules);
+  } else if (event.description) {
+    lines.push('', '**RULES / NOTES:**', event.description);
+  }
+
+  lines.push('', '_Use the buttons below to register your slot or update your status._');
+
+  const slotBlocks = (registration?.slots || []).map(buildSlotSummaryLine);
+  if (slotBlocks.length > 0) {
+    lines.push('', ...slotBlocks);
+  } else {
+    lines.push('', '**Registration slots**', 'Staff still needs to add slots for this event.');
+  }
+
+  const notGoing = registration?.notGoing || [];
+  lines.push('', `**Not Attending - ${notGoing.length}**`);
+  lines.push(mentionListForUsers(notGoing));
+
+  const embed = new EmbedBuilder()
+    .setColor(event.status === 'cancelled' ? 0xed4245 : 0xdc2626)
+    .setTitle(`${String(event.title || 'Event').toUpperCase()} REGISTRATION FORM`)
+    .setDescription(trimLines(lines, 3900))
+    .setFooter({ text: `PanzerVault Event System - Event #${event.id}` })
+    .setTimestamp(new Date(event.created_at || Date.now()));
+
+  if (event.external_url) {
+    embed.addFields({
+      name: 'Link',
+      value: event.external_url,
+      inline: false
+    });
+  }
+
+  if (event.image_url) {
+    embed.setImage(event.image_url);
+  }
+
+  if (event.status === 'cancelled' && event.cancellation_reason) {
+    embed.addFields({
+      name: 'Cancelled',
+      value: event.cancellation_reason,
+      inline: false
+    });
+  }
+
+  return embed;
+}
+
+function buildEventEmbed(event, counts, registration = null) {
+  if (isSlotRegistrationEvent(event)) {
+    return buildRegistrationEventEmbed(event, counts, registration);
+  }
+
   const timestamp = Math.floor(new Date(event.starts_at).getTime() / 1000);
 
   const embed = new EmbedBuilder()
@@ -102,6 +246,33 @@ function buildEventEmbed(event, counts) {
 
 function buildEventComponents(event) {
   if (event.status !== 'scheduled') return [];
+
+  if (isSlotRegistrationEvent(event)) {
+    const registerRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(buildSlotSignupCustomId(event.id))
+        .setLabel('Sign Up')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(buildRsvpCustomId(event.id, RSVP_STATES.NOT_GOING))
+        .setLabel('Decline')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    if (event.external_url) {
+      return [
+        registerRow,
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Open Link')
+            .setStyle(ButtonStyle.Link)
+            .setURL(event.external_url)
+        )
+      ];
+    }
+
+    return [registerRow];
+  }
 
   const rsvpRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -211,14 +382,22 @@ function trimLines(lines, maxLength = 1900) {
   return output.join('\n');
 }
 
-async function renderEventMessage(channel, event, settings = null) {
+async function buildEventMessagePayload(event, settings = null) {
   const counts = await eventRepository.getRsvpCounts(event.id);
-  return channel.send({
+  const registration = isSlotRegistrationEvent(event)
+    ? await eventRepository.getRegistrationState(event.id)
+    : null;
+
+  return {
     content: buildEventAnnouncementContent(settings),
-    embeds: [buildEventEmbed(event, counts)],
+    embeds: [buildEventEmbed(event, counts, registration)],
     components: buildEventComponents(event),
     allowedMentions: eventAllowedMentions(settings)
-  });
+  };
+}
+
+async function renderEventMessage(channel, event, settings = null) {
+  return channel.send(await buildEventMessagePayload(event, settings));
 }
 
 async function refreshEventMessage(client, event) {
@@ -230,10 +409,10 @@ async function refreshEventMessage(client, event) {
   const message = await channel.messages.fetch(event.message_id).catch(() => null);
   if (!message) return;
 
-  const counts = await eventRepository.getRsvpCounts(event.id);
+  const payload = await buildEventMessagePayload(event, null);
   await message.edit({
-    embeds: [buildEventEmbed(event, counts)],
-    components: buildEventComponents(event),
+    embeds: payload.embeds,
+    components: payload.components,
     allowedMentions: { parse: [] }
   }).catch(() => null);
 }
@@ -276,6 +455,14 @@ async function createEventPrepared(interaction, data) {
     throw new Error('The configured event channel is missing or not text based.');
   }
 
+  const registrationMode = normalizeRegistrationMode(data.registrationMode);
+  const registrationSlots = registrationMode === REGISTRATION_MODES.SLOTS
+    ? validateRegistrationSlots(data.registrationSlots || data.slots || [])
+    : [];
+  if (registrationMode === REGISTRATION_MODES.SLOTS && registrationSlots.length === 0) {
+    throw new Error('Registration-form events need at least one slot.');
+  }
+
   const event = await eventRepository.createEvent({
     guildId: interaction.guild.id,
     channelId: channel.id,
@@ -283,10 +470,17 @@ async function createEventPrepared(interaction, data) {
     description: data.description || null,
     externalUrl: validateLink(data.externalUrl),
     imageUrl: validateImageUrl(data.imageUrl),
+    registrationMode,
+    mapName: data.mapName || null,
+    rules: data.rules || null,
     timeZone: data.timeZone || null,
     startsAt,
     createdBy: data.createdBy || interaction.user.id
   });
+
+  if (registrationMode === REGISTRATION_MODES.SLOTS) {
+    await eventRepository.insertSlots(event.id, registrationSlots);
+  }
 
   const message = await renderEventMessage(channel, event, settings);
   const updates = {
@@ -341,8 +535,11 @@ async function listEvents(interaction) {
   for (const event of events.slice(0, 10)) {
     const counts = await eventRepository.getRsvpCounts(event.id);
     const link = eventMessageUrl(event);
+    const registrationText = isSlotRegistrationEvent(event)
+      ? `Registered ${counts.going_count}`
+      : `Going ${counts.going_count}, Maybe ${counts.maybe_count}`;
     lines.push(
-      `#${event.id} **${event.title}** - ${formatTimestamp(event.starts_at)} - Going ${counts.going_count}, Maybe ${counts.maybe_count}${link ? ` - ${link}` : ''}`
+      `#${event.id} **${event.title}** - ${formatTimestamp(event.starts_at)} - ${registrationText}${link ? ` - ${link}` : ''}`
     );
   }
 
@@ -367,12 +564,16 @@ async function eventInfo(interaction) {
     `Status: ${event.status}`,
     `Starts: ${formatTimestamp(event.starts_at)}`,
     `Timezone: ${event.time_zone || 'Server local time'}`,
-    `RSVP: Going ${counts.going_count}, Maybe ${counts.maybe_count}, Not Going ${counts.not_going_count}`,
+    isSlotRegistrationEvent(event)
+      ? `Registration: ${counts.going_count} signed up, ${counts.not_going_count} declined`
+      : `RSVP: Going ${counts.going_count}, Maybe ${counts.maybe_count}, Not Going ${counts.not_going_count}`,
     `Check-ins: ${attendance.length}`
   ];
 
   if (event.ends_at) lines.push(`Ends: ${formatTimestamp(event.ends_at)}`);
+  if (event.map_name) lines.push(`Map: ${event.map_name}`);
   if (event.description) lines.push(`Description: ${event.description}`);
+  if (event.rules) lines.push(`Rules: ${event.rules}`);
   if (event.external_url) lines.push(`Link: ${event.external_url}`);
   if (eventMessageUrl(event)) lines.push(`RSVP post: ${eventMessageUrl(event)}`);
 
@@ -395,6 +596,16 @@ async function eventAttendees(interaction) {
     eventRepository.listRsvps(event.id),
     eventRepository.listAttendance(event.id)
   ]);
+
+  if (isSlotRegistrationEvent(event)) {
+    const registration = await eventRepository.getRegistrationState(event.id);
+    return trimLines([
+      `Event #${event.id}: **${event.title}**`,
+      ...registration.slots.map(slot => `${slot.label} (${slot.signups.length}/${slot.capacity}): ${mentionList(slot.signups)}`),
+      `Not Attending (${registration.notGoing.length}): ${mentionList(registration.notGoing)}`,
+      `Checked in (${attendance.length}): ${mentionList(attendance)}`
+    ]);
+  }
 
   const going = rsvps.filter(row => row.status === RSVP_STATES.GOING);
   const maybe = rsvps.filter(row => row.status === RSVP_STATES.MAYBE);
@@ -425,6 +636,8 @@ async function editEvent(interaction) {
   const description = interaction.options.getString('description');
   const link = interaction.options.getString('link');
   const imageUrl = interaction.options.getString('image_url');
+  const mapName = interaction.options.getString('map');
+  const rules = interaction.options.getString('rules');
   const startsAtInput = interaction.options.getString('starts_at');
   const timeZone = interaction.options.getString('timezone');
 
@@ -435,6 +648,8 @@ async function editEvent(interaction) {
   if (description !== null) updates.description = description.trim() || null;
   if (link !== null) updates.external_url = link.trim() ? validateLink(link.trim()) : null;
   if (imageUrl !== null) updates.image_url = imageUrl.trim() ? validateImageUrl(imageUrl.trim()) : null;
+  if (mapName !== null) updates.map_name = mapName.trim() || null;
+  if (rules !== null) updates.rules = rules.trim() || null;
   if (timeZone !== null) updates.time_zone = timeZone || null;
 
   if (startsAtInput) {
@@ -472,6 +687,102 @@ async function editEvent(interaction) {
   return updated;
 }
 
+async function handleSlotSignupPrompt(interaction) {
+  const parsed = parseSlotSignupCustomId(interaction.customId);
+  if (!parsed) return false;
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const event = await eventRepository.findById(interaction.guild.id, parsed.eventId);
+  if (!event || event.status !== 'scheduled' || !isSlotRegistrationEvent(event)) {
+    await interaction.editReply('That event is no longer accepting registrations.').catch(() => null);
+    return true;
+  }
+
+  const [registration, currentRsvp] = await Promise.all([
+    eventRepository.getRegistrationState(event.id),
+    eventRepository.getUserRsvp(event.id, interaction.user.id)
+  ]);
+
+  const currentSlotId = currentRsvp?.slot_id ? String(currentRsvp.slot_id) : null;
+  const availableSlots = registration.slots.filter(slot =>
+    slot.signups.length < Number(slot.capacity) || String(slot.id) === currentSlotId
+  );
+
+  if (availableSlots.length === 0) {
+    await interaction.editReply('All registration slots are full right now.').catch(() => null);
+    return true;
+  }
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(buildSlotSelectCustomId(event.id))
+    .setPlaceholder('Choose your event slot')
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(
+      availableSlots.map(slot => {
+        const count = slot.signups.length;
+        const label = `${slot.label} (${count}/${slot.capacity})`.slice(0, 100);
+        return new StringSelectMenuOptionBuilder()
+          .setLabel(label)
+          .setValue(String(slot.id))
+          .setDescription(String(slot.id) === currentSlotId ? 'You are currently signed up here.' : 'Register for this slot.')
+          .setDefault(String(slot.id) === currentSlotId);
+      })
+    );
+
+  await interaction.editReply({
+    content: `Choose your slot for **${event.title}**. You can come back and change this later.`,
+    components: [new ActionRowBuilder().addComponents(select)]
+  });
+
+  return true;
+}
+
+async function handleSlotSelect(interaction) {
+  const parsed = parseSlotSelectCustomId(interaction.customId);
+  if (!parsed) return false;
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const event = await eventRepository.findById(interaction.guild.id, parsed.eventId);
+  if (!event || event.status !== 'scheduled' || !isSlotRegistrationEvent(event)) {
+    await interaction.editReply('That event is no longer accepting registrations.').catch(() => null);
+    return true;
+  }
+
+  const slotId = interaction.values[0];
+  const result = await eventRepository.signUpForSlot(event.id, slotId, interaction.user.id);
+
+  if (!result.ok) {
+    const message = result.reason === 'slot_full'
+      ? `**${result.slot.label}** is full. Choose another slot or try again later.`
+      : 'That registration slot is no longer available.';
+    await interaction.editReply(message).catch(() => null);
+    return true;
+  }
+
+  await updateEventRsvpRole(interaction, event, RSVP_STATES.GOING).catch(error => {
+    logger.warn('Failed to update event registration role', error);
+  });
+
+  const xpResult = await eventXpService.awardRsvpXp(
+    interaction.client,
+    event,
+    interaction.user.id,
+    result.previousStatus,
+    RSVP_STATES.GOING
+  ).catch(() => ({ awarded: false }));
+
+  const xpText = xpResult.awarded ? ` You earned ${xpResult.xpDelta} XP.` : '';
+  await interaction.editReply(`Registered for **${event.title}** as **${result.slot.label}**.${xpText}`).catch(() => null);
+  await refreshEventMessage(interaction.client, event).catch(error => {
+    logger.warn('Failed to refresh event registration message', error);
+  });
+
+  return true;
+}
+
 async function handleRsvp(interaction) {
   const parsed = parseRsvpCustomId(interaction.customId);
   if (!parsed) return false;
@@ -481,6 +792,11 @@ async function handleRsvp(interaction) {
   const event = await eventRepository.findById(interaction.guild.id, parsed.eventId);
   if (!event || event.status !== 'scheduled') {
     await interaction.editReply('That event is no longer accepting RSVPs.').catch(() => null);
+    return true;
+  }
+
+  if (isSlotRegistrationEvent(event) && parsed.state !== RSVP_STATES.NOT_GOING) {
+    await interaction.editReply('Use **Sign Up** on the event post to choose a registration slot.').catch(() => null);
     return true;
   }
 
@@ -633,15 +949,21 @@ module.exports = {
   eventInfo,
   eventAttendees,
   editEvent,
+  handleSlotSignupPrompt,
+  handleSlotSelect,
   handleRsvp,
   handleAttendance,
   processDueReminders,
   parseRsvpCustomId,
   parseAttendCustomId,
+  parseSlotSignupCustomId,
+  parseSlotSelectCustomId,
   buildEventEmbed,
   buildEventComponents,
+  buildEventMessagePayload,
   validateLink,
   validateImageUrl,
+  validateRegistrationSlots,
   buildEventAnnouncementContent,
   eventAllowedMentions
 };

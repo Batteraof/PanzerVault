@@ -123,6 +123,20 @@ module.exports = {
               .setDescription('New event image URL. Use a single space to clear it.')
               .setRequired(false)
           )
+          .addStringOption(option =>
+            option
+              .setName('map')
+              .setDescription('Map name for registration-form events. Use a single space to clear it.')
+              .setRequired(false)
+              .setMaxLength(80)
+          )
+          .addStringOption(option =>
+            option
+              .setName('rules')
+              .setDescription('Rules or notes for registration-form events. Use a single space to clear it.')
+              .setRequired(false)
+              .setMaxLength(900)
+          )
       )
     )
     .addSubcommand(subcommand =>

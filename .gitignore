@@ -1,4 +1,5 @@
 node_modules/
+.npm-cache/
 .env
 npm-debug.log*
 pm2.log

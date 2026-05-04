@@ -53,6 +53,9 @@ async function handleInteractionCreate(interaction) {
     if (roleHandled) return;
 
     if (interaction.isButton()) {
+      const slotSignupHandled = await eventService.handleSlotSignupPrompt(interaction);
+      if (slotSignupHandled) return;
+
       const eventHandled = await eventService.handleRsvp(interaction);
       if (eventHandled) return;
 
@@ -61,6 +64,11 @@ async function handleInteractionCreate(interaction) {
 
       const spotlightHandled = await spotlightService.handleVote(interaction);
       if (spotlightHandled) return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      const eventSlotHandled = await eventService.handleSlotSelect(interaction);
+      if (eventSlotHandled) return;
     }
 
     const flowHandled = await interactionFlowRouter.handleInteraction(interaction);

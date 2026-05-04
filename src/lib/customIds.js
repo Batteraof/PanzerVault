@@ -14,6 +14,8 @@ module.exports = {
   COACH_TOGGLE: 'coach_toggle',
   EVENT_RSVP_PREFIX: 'event_rsvp',
   EVENT_ATTEND_PREFIX: 'event_attend',
+  EVENT_SLOT_SIGNUP_PREFIX: 'event_slot_signup',
+  EVENT_SLOT_SELECT_PREFIX: 'event_slot_select',
   SPOTLIGHT_VOTE_PREFIX: 'spotlight_vote',
   SUBMIT_FLOW_PREFIX: 'submit_flow',
   GALLERY_WIZARD_PREFIX: 'gallery_wizard',
